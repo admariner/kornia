@@ -48,13 +48,13 @@ def ssim(
     if not isinstance(max_val, float):
         raise TypeError(f"Input max_val type is not a float. Got {type(max_val)}")
 
-    if not len(img1.shape) == 4:
+    if len(img1.shape) != 4:
         raise ValueError(f"Invalid img1 shape, we expect BxCxHxW. Got: {img1.shape}")
 
-    if not len(img2.shape) == 4:
+    if len(img2.shape) != 4:
         raise ValueError(f"Invalid img2 shape, we expect BxCxHxW. Got: {img2.shape}")
 
-    if not img1.shape == img2.shape:
+    if img1.shape != img2.shape:
         raise ValueError(f"img1 and img2 shapes must be the same. Got: {img1.shape} and {img2.shape}")
 
     # prepare kernel

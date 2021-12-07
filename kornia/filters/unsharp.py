@@ -31,8 +31,7 @@ def unsharp_mask(
         torch.Size([2, 4, 5, 5])
     """
     data_blur: torch.Tensor = gaussian_blur2d(input, kernel_size, sigma, border_type)
-    data_sharpened: torch.Tensor = input + (input - data_blur)
-    return data_sharpened
+    return input + (input - data_blur)
 
 
 class UnsharpMask(nn.Module):

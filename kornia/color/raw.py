@@ -160,9 +160,7 @@ def raw_to_rgb(image: torch.Tensor, cfa: CFA) -> torch.Tensor:
     gu = gu.view(imagesize)
     bu = bu.view(imagesize)
 
-    rgb: torch.Tensor = torch.cat([ru, gu, bu], dim=-3)
-
-    return rgb
+    return torch.cat([ru, gu, bu], dim=-3)
 
 
 def rgb_to_raw(image: torch.Tensor, cfa: CFA) -> torch.Tensor:

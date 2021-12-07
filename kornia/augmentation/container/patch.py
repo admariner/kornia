@@ -211,7 +211,7 @@ class PatchSequential(ImageSequential):
             grid_size = self.grid_size
         window_size = (input.size(-2) // grid_size[-2], input.size(-1) // grid_size[-1])
         stride = window_size
-        return extract_tensor_patches(input, window_size, stride)
+        return extract_tensor_patches(input, stride, stride)
 
     def restore_from_patches(
         self,
@@ -266,7 +266,12 @@ class PatchSequential(ImageSequential):
             batch_shape: 5-dim shape arranged as :math:``(N, B, C, H, W)``, in which N represents
                 the number of sequence.
         """
-        if not self.same_on_batch and self.random_apply:
+        if (
+            not self.same_on_batch
+            and self.random_apply
+            or self.same_on_batch
+            and self.random_apply
+        ):
             # diff_on_batch and random_apply => patch-wise augmentation
             with_mix = False
             for i in range(batch_shape[0]):
@@ -277,30 +282,19 @@ class PatchSequential(ImageSequential):
                         yield ParamItem(s[0], s[1].forward_parameters(torch.Size(batch_shape[1:]))), i
                     else:
                         yield ParamItem(s[0], None), i
-        elif not self.same_on_batch and not self.random_apply:
+        elif not self.same_on_batch:
             for i, nchild in enumerate(self.named_children()):
                 if isinstance(nchild[1], (_AugmentationBase, MixAugmentationBase, SequentialBase)):
                     yield ParamItem(nchild[0], nchild[1].forward_parameters(torch.Size(batch_shape[1:]))), i
                 else:
                     yield ParamItem(nchild[0], None), i
-        elif not self.random_apply:
+        else:
             # same_on_batch + not random_apply => location-wise augmentation
             for i, nchild in enumerate(islice(cycle(self.named_children()), batch_shape[0])):
                 if isinstance(nchild[1], (_AugmentationBase, MixAugmentationBase, SequentialBase)):
                     yield ParamItem(nchild[0], nchild[1].forward_parameters(torch.Size(batch_shape[1:]))), i
                 else:
                     yield ParamItem(nchild[0], None), i
-        else:
-            # same_on_batch + random_apply => location-wise augmentation
-            with_mix = False
-            for i in range(batch_shape[0]):
-                seq, mix_added = self.get_random_forward_sequence(with_mix=with_mix)
-                with_mix = mix_added
-                for s in seq:
-                    if isinstance(s[1], (_AugmentationBase, MixAugmentationBase, SequentialBase)):
-                        yield ParamItem(s[0], s[1].forward_parameters(torch.Size(batch_shape[1:]))), i
-                    else:
-                        yield ParamItem(s[0], None), i
 
     def apply_by_param(
         self, input: TensorWithTransformMat, label: Optional[torch.Tensor], params: PatchParamItem
@@ -314,11 +308,7 @@ class PatchSequential(ImageSequential):
             _input = input[params.indices]
 
         _label: Optional[torch.Tensor]
-        if label is not None:
-            _label = label[params.indices]
-        else:
-            _label = label
-
+        _label = label[params.indices] if label is not None else label
         module = self.get_submodule(params.param.name)
         output, out_label = self.apply_to_input(_input, _label, module, params.param)
 
@@ -330,12 +320,12 @@ class PatchSequential(ImageSequential):
         if isinstance(output, (tuple,)) and isinstance(input, (tuple,)):
             input[0][params.indices] = output[0]
             input[1][params.indices] = output[1]
-        elif isinstance(output, (tuple,)) and not isinstance(input, (tuple,)):
+        elif isinstance(output, (tuple,)):
             input[params.indices] = output[0]
             input = (input, output[1])
-        elif not isinstance(output, (tuple,)) and isinstance(input, (tuple,)):
+        elif isinstance(input, (tuple,)):
             input[0][params.indices] = output
-        elif not isinstance(output, (tuple,)) and not isinstance(input, (tuple,)):
+        else:
             input[params.indices] = output
 
         # TODO: this label handling is naive that may not be able to handle complex cases.

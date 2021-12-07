@@ -94,10 +94,10 @@ def warp_perspective(
     if not isinstance(M, torch.Tensor):
         raise TypeError(f"Input M type is not a torch.Tensor. Got {type(M)}")
 
-    if not len(src.shape) == 4:
+    if len(src.shape) != 4:
         raise ValueError(f"Input src must be a BxCxHxW tensor. Got {src.shape}")
 
-    if not (len(M.shape) == 3 and M.shape[-2:] == (3, 3)):
+    if len(M.shape) != 3 or M.shape[-2:] != (3, 3):
         raise ValueError(f"Input M must be a Bx3x3 tensor. Got {M.shape}")
 
     # fill padding is only supported for 3 channels because we can't set fill_value default
@@ -177,10 +177,10 @@ def warp_affine(
     if not isinstance(M, torch.Tensor):
         raise TypeError(f"Input M type is not a torch.Tensor. Got {type(M)}")
 
-    if not len(src.shape) == 4:
+    if len(src.shape) != 4:
         raise ValueError(f"Input src must be a BxCxHxW tensor. Got {src.shape}")
 
-    if not (len(M.shape) == 3 or M.shape[-2:] == (2, 3)):
+    if len(M.shape) != 3 and M.shape[-2:] != (2, 3):
         raise ValueError(f"Input M must be a Bx2x3 tensor. Got {M.shape}")
 
     # fill padding is only supported for 3 channels because we can't set fill_value default
@@ -321,16 +321,16 @@ def get_perspective_transform(src, dst):
     if not isinstance(dst, torch.Tensor):
         raise TypeError(f"Input type is not a torch.Tensor. Got {type(dst)}")
 
-    if not src.dtype == dst.dtype:
+    if src.dtype != dst.dtype:
         raise TypeError(f"Source data type {src.dtype} must match Destination data type {dst.dtype}")
 
-    if not src.shape[-2:] == (4, 2):
+    if src.shape[-2:] != (4, 2):
         raise ValueError(f"Inputs must be a Bx4x2 tensor. Got {src.shape}")
 
-    if not src.shape == dst.shape:
+    if src.shape != dst.shape:
         raise ValueError(f"Inputs must have the same shape. Got {dst.shape}")
 
-    if not (src.shape[0] == dst.shape[0]):
+    if src.shape[0] != dst.shape[0]:
         raise ValueError(f"Inputs must have same batch size dimension. Expect {src.shape} but got {dst.shape}")
 
     # we build matrix A by using only 4 point correspondence. The linear
@@ -438,13 +438,13 @@ def get_rotation_matrix2d(center: torch.Tensor, angle: torch.Tensor, scale: torc
     if not isinstance(scale, torch.Tensor):
         raise TypeError(f"Input scale type is not a torch.Tensor. Got {type(scale)}")
 
-    if not (len(center.shape) == 2 and center.shape[1] == 2):
+    if len(center.shape) != 2 or center.shape[1] != 2:
         raise ValueError(f"Input center must be a Bx2 tensor. Got {center.shape}")
 
-    if not len(angle.shape) == 1:
+    if len(angle.shape) != 1:
         raise ValueError(f"Input angle must be a B tensor. Got {angle.shape}")
 
-    if not (len(scale.shape) == 2 and scale.shape[1] == 2):
+    if len(scale.shape) != 2 or scale.shape[1] != 2:
         raise ValueError(f"Input scale must be a Bx2 tensor. Got {scale.shape}")
 
     if not (center.shape[0] == angle.shape[0] == scale.shape[0]):
@@ -550,11 +550,13 @@ def remap(
     # simulate broadcasting since grid_sample does not support it
     map_xy_norm: torch.Tensor = map_xy.expand(batch_size, -1, -1, -1)
 
-    # warp ans return
-    tensor_warped: torch.Tensor = F.grid_sample(
-        tensor, map_xy_norm, mode=mode, padding_mode=padding_mode, align_corners=align_corners
+    return F.grid_sample(
+        tensor,
+        map_xy_norm,
+        mode=mode,
+        padding_mode=padding_mode,
+        align_corners=align_corners,
     )
-    return tensor_warped
 
 
 def invert_affine_transform(matrix: torch.Tensor) -> torch.Tensor:
@@ -584,7 +586,7 @@ def invert_affine_transform(matrix: torch.Tensor) -> torch.Tensor:
     if not isinstance(matrix, torch.Tensor):
         raise TypeError(f"Input matrix type is not a torch.Tensor. Got {type(matrix)}")
 
-    if not (len(matrix.shape) == 3 and matrix.shape[-2:] == (2, 3)):
+    if len(matrix.shape) != 3 or matrix.shape[-2:] != (2, 3):
         raise ValueError(f"Input matrix must be a Bx2x3 tensor. Got {matrix.shape}")
 
     matrix_tmp: torch.Tensor = convert_affinematrix_to_homography(matrix)
@@ -870,7 +872,7 @@ def warp_affine3d(
     """
     if len(src.shape) != 5:
         raise AssertionError(src.shape)
-    if not (len(M.shape) == 3 and M.shape[-2:] == (3, 4)):
+    if len(M.shape) != 3 or M.shape[-2:] != (3, 4):
         raise AssertionError(M.shape)
     if len(dsize) != 3:
         raise AssertionError(dsize)
@@ -911,9 +913,9 @@ def projection_from_Rt(rmat: torch.Tensor, tvec: torch.Tensor) -> torch.Tensor:
        the projection matrix with shape :math:`(*, 3, 4)`.
 
     """
-    if not (len(rmat.shape) >= 2 and rmat.shape[-2:] == (3, 3)):
+    if len(rmat.shape) < 2 or rmat.shape[-2:] != (3, 3):
         raise AssertionError(rmat.shape)
-    if not (len(tvec.shape) >= 2 and tvec.shape[-2:] == (3, 1)):
+    if len(tvec.shape) < 2 or tvec.shape[-2:] != (3, 1):
         raise AssertionError(tvec.shape)
 
     return torch.cat([rmat, tvec], dim=-1)  # Bx3x4
@@ -940,9 +942,9 @@ def get_projective_transform(center: torch.Tensor, angles: torch.Tensor, scales:
     .. note::
         This function is often used in conjunction with :func:`warp_affine3d`.
     """
-    if not (len(center.shape) == 2 and center.shape[-1] == 3):
+    if len(center.shape) != 2 or center.shape[-1] != 3:
         raise AssertionError(center.shape)
-    if not (len(angles.shape) == 2 and angles.shape[-1] == 3):
+    if len(angles.shape) != 2 or angles.shape[-1] != 3:
         raise AssertionError(angles.shape)
     if center.device != angles.device:
         raise AssertionError(center.device, angles.device)
@@ -1048,16 +1050,16 @@ def get_perspective_transform3d(src: torch.Tensor, dst: torch.Tensor) -> torch.T
     if not isinstance(dst, (torch.Tensor)):
         raise TypeError(f"Input type is not a torch.Tensor. Got {type(dst)}")
 
-    if not src.shape[-2:] == (8, 3):
+    if src.shape[-2:] != (8, 3):
         raise ValueError(f"Inputs must be a Bx8x3 tensor. Got {src.shape}")
 
-    if not src.shape == dst.shape:
+    if src.shape != dst.shape:
         raise ValueError(f"Inputs must have the same shape. Got {dst.shape}")
 
-    if not (src.shape[0] == dst.shape[0]):
+    if src.shape[0] != dst.shape[0]:
         raise ValueError(f"Inputs must have same batch size dimension. Expect {src.shape} but got {dst.shape}")
 
-    if not (src.device == dst.device and src.dtype == dst.dtype):
+    if src.device != dst.device or src.dtype != dst.dtype:
         raise AssertionError(
             f"Expect `src` and `dst` to be in the same device (Got {src.dtype}, {dst.dtype}) "
             f"with the same dtype (Got {src.dtype}, {dst.dtype})."
@@ -1226,10 +1228,10 @@ def warp_perspective3d(
     if not isinstance(M, torch.Tensor):
         raise TypeError(f"Input M type is not a torch.Tensor. Got {type(M)}")
 
-    if not len(src.shape) == 5:
+    if len(src.shape) != 5:
         raise ValueError(f"Input src must be a BxCxDxHxW tensor. Got {src.shape}")
 
-    if not (len(M.shape) == 3 or M.shape[-2:] == (4, 4)):
+    if len(M.shape) != 3 and M.shape[-2:] != (4, 4):
         raise ValueError(f"Input M must be a Bx4x4 tensor. Got {M.shape}")
 
     # launches the warper
@@ -1279,7 +1281,7 @@ def homography_warp(
         torch.Size([1, 4, 4, 2])
 
     """
-    if not src_homo_dst.device == patch_src.device:
+    if src_homo_dst.device != patch_src.device:
         raise TypeError(
             "Patch and homography must be on the same device. \
                          Got patch.device: {} src_H_dst.device: {}.".format(
@@ -1343,7 +1345,7 @@ def homography_warp3d(
         >>> homography = torch.eye(3).view(1, 3, 3)
         >>> output = homography_warp(input, homography, (32, 32))
     """
-    if not src_homo_dst.device == patch_src.device:
+    if src_homo_dst.device != patch_src.device:
         raise TypeError(
             "Patch and homography must be on the same device. \
                          Got patch.device: {} src_H_dst.device: {}.".format(

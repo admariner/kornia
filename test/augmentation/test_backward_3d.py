@@ -90,7 +90,7 @@ class TestRandomAffine3DBackward:
         else:
             output = aug(input)
 
-        if len(list(aug.parameters())) != 0:
+        if list(aug.parameters()):
             mse = nn.MSELoss()
             opt = torch.optim.SGD(aug.parameters(), lr=10)
             loss = mse(output, torch.ones_like(output) * 2)  # to ensure that a big loss value could be obtained
@@ -189,7 +189,7 @@ class TestRandomRotation3DBackward:
         else:
             output = aug(input)
 
-        if len(list(aug.parameters())) != 0:
+        if list(aug.parameters()):
             mse = nn.MSELoss()
             opt = torch.optim.SGD(aug.parameters(), lr=10)
             loss = mse(output, torch.ones_like(output) * 2)  # to ensure that a big loss value could be obtained
@@ -240,7 +240,7 @@ class TestRandomPerspective3DBackward:
         else:
             output = aug(input)
 
-        if len(list(aug.parameters())) != 0:
+        if list(aug.parameters()):
             mse = nn.MSELoss()
             opt = torch.optim.SGD(aug.parameters(), lr=10)
             loss = mse(output, torch.ones_like(output) * 2)  # to ensure that a big loss value could be obtained
@@ -268,7 +268,6 @@ class TestRandomPerspective3DBackward:
 class TestRandomMotionBlur3DBackward:
     @pytest.mark.parametrize("angle", [20.0, torch.tensor(20.0), torch.tensor([20.0])])
     @pytest.mark.parametrize("direction", [[-0.5, 0.5], torch.tensor([-0.5, 0.5])])
-    # 'reflect' is not implemented by torch.
     @pytest.mark.parametrize("border_type", ['constant', 'replicate', 'circular'])
     @pytest.mark.parametrize("resample", ['bilinear'])  # TODO: Ignore nearest for now.
     @pytest.mark.parametrize("return_transform", [True, False])
@@ -297,7 +296,7 @@ class TestRandomMotionBlur3DBackward:
         else:
             output = aug(input)
 
-        if len(list(aug.parameters())) != 0:
+        if list(aug.parameters()):
             mse = nn.MSELoss()
             opt = torch.optim.SGD(aug.parameters(), lr=10)
             loss = mse(output, torch.ones_like(output) * 2)  # to ensure that a big loss value could be obtained

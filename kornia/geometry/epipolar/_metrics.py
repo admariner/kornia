@@ -27,7 +27,7 @@ def sampson_epipolar_distance(
     if not isinstance(Fm, torch.Tensor):
         raise TypeError(f"Fm type is not a torch.Tensor. Got {type(Fm)}")
 
-    if (len(Fm.shape) != 3) or not Fm.shape[-2:] == (3, 3):
+    if len(Fm.shape) != 3 or Fm.shape[-2:] != (3, 3):
         raise ValueError(f"Fm must be a (*, 3, 3) tensor. Got {Fm.shape}")
 
     if pts1.size(-1) == 2:
@@ -79,7 +79,7 @@ def symmetrical_epipolar_distance(
     if not isinstance(Fm, torch.Tensor):
         raise TypeError(f"Fm type is not a torch.Tensor. Got {type(Fm)}")
 
-    if (len(Fm.shape) != 3) or not Fm.shape[-2:] == (3, 3):
+    if len(Fm.shape) != 3 or Fm.shape[-2:] != (3, 3):
         raise ValueError(f"Fm must be a (*, 3, 3) tensor. Got {Fm.shape}")
 
     if pts1.size(-1) == 2:

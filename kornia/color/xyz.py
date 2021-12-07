@@ -31,9 +31,7 @@ def rgb_to_xyz(image: torch.Tensor) -> torch.Tensor:
     y: torch.Tensor = 0.212671 * r + 0.715160 * g + 0.072169 * b
     z: torch.Tensor = 0.019334 * r + 0.119193 * g + 0.950227 * b
 
-    out: torch.Tensor = torch.stack([x, y, z], -3)
-
-    return out
+    return torch.stack([x, y, z], -3)
 
 
 def xyz_to_rgb(image: torch.Tensor) -> torch.Tensor:
@@ -63,9 +61,7 @@ def xyz_to_rgb(image: torch.Tensor) -> torch.Tensor:
     g: torch.Tensor = -0.9692549499965682 * x + 1.8759900014898907 * y + 0.0415559265582928 * z
     b: torch.Tensor = 0.0556466391351772 * x + -0.2040413383665112 * y + 1.0573110696453443 * z
 
-    out: torch.Tensor = torch.stack([r, g, b], dim=-3)
-
-    return out
+    return torch.stack([r, g, b], dim=-3)
 
 
 class RgbToXyz(nn.Module):

@@ -28,8 +28,7 @@ def _get_window_grid_kernel2d(h: int, w: int, device: torch.device = torch.devic
     """
     window_grid2d = create_meshgrid(h, w, False, device=device)
     window_grid2d = normalize_pixel_coordinates(window_grid2d, h, w)
-    conv_kernel = window_grid2d.permute(3, 0, 1, 2)
-    return conv_kernel
+    return window_grid2d.permute(3, 0, 1, 2)
 
 
 def _get_center_kernel2d(h: int, w: int, device: torch.device = torch.device('cpu')) -> torch.Tensor:
@@ -47,18 +46,10 @@ def _get_center_kernel2d(h: int, w: int, device: torch.device = torch.device('cp
     center_kernel = torch.zeros(2, 2, h, w, device=device)
 
     #  If the size is odd, we have one pixel for center, if even - 2
-    if h % 2 != 0:
-        h_i1 = h // 2
-        h_i2 = (h // 2) + 1
-    else:
-        h_i1 = (h // 2) - 1
-        h_i2 = (h // 2) + 1
-    if w % 2 != 0:
-        w_i1 = w // 2
-        w_i2 = (w // 2) + 1
-    else:
-        w_i1 = (w // 2) - 1
-        w_i2 = (w // 2) + 1
+    h_i1 = h // 2 if h % 2 != 0 else (h // 2) - 1
+    h_i2 = (h // 2) + 1
+    w_i1 = w // 2 if w % 2 != 0 else (w // 2) - 1
+    w_i2 = (w // 2) + 1
     center_kernel[(0, 1), (0, 1), h_i1:h_i2, w_i1:w_i2] = 1.0 / float((h_i2 - h_i1) * (w_i2 - w_i1))
     return center_kernel
 
@@ -78,24 +69,12 @@ def _get_center_kernel3d(d: int, h: int, w: int, device: torch.device = torch.de
     """
     center_kernel = torch.zeros(3, 3, d, h, w, device=device)
     #  If the size is odd, we have one pixel for center, if even - 2
-    if h % 2 != 0:
-        h_i1 = h // 2
-        h_i2 = (h // 2) + 1
-    else:
-        h_i1 = (h // 2) - 1
-        h_i2 = (h // 2) + 1
-    if w % 2 != 0:
-        w_i1 = w // 2
-        w_i2 = (w // 2) + 1
-    else:
-        w_i1 = (w // 2) - 1
-        w_i2 = (w // 2) + 1
-    if d % 2 != 0:
-        d_i1 = d // 2
-        d_i2 = (d // 2) + 1
-    else:
-        d_i1 = (d // 2) - 1
-        d_i2 = (d // 2) + 1
+    h_i1 = h // 2 if h % 2 != 0 else (h // 2) - 1
+    h_i2 = (h // 2) + 1
+    w_i1 = w // 2 if w % 2 != 0 else (w // 2) - 1
+    w_i2 = (w // 2) + 1
+    d_i1 = d // 2 if d % 2 != 0 else (d // 2) - 1
+    d_i2 = (d // 2) + 1
     center_num = float((h_i2 - h_i1) * (w_i2 - w_i1) * (d_i2 - d_i1))
     center_kernel[(0, 1, 2), (0, 1, 2), d_i1:d_i2, h_i1:h_i2, w_i1:w_i2] = 1.0 / center_num
     return center_kernel
@@ -120,8 +99,7 @@ def _get_window_grid_kernel3d(d: int, h: int, w: int, device: torch.device = tor
     else:  # only onr channel with index == 0
         z = torch.zeros(1, 1, 1, 1, device=device)
     grid3d = torch.cat([z.repeat(1, h, w, 1).contiguous(), grid2d.repeat(d, 1, 1, 1)], dim=3)
-    conv_kernel = grid3d.permute(3, 0, 1, 2).unsqueeze(1)
-    return conv_kernel
+    return grid3d.permute(3, 0, 1, 2).unsqueeze(1)
 
 
 class ConvSoftArgmax2d(nn.Module):
@@ -314,7 +292,7 @@ def conv_soft_argmax2d(
     if not torch.is_tensor(input):
         raise TypeError(f"Input type is not a torch.Tensor. Got {type(input)}")
 
-    if not len(input.shape) == 4:
+    if len(input.shape) != 4:
         raise ValueError(f"Invalid input shape, we expect BxCxHxW. Got: {input.shape}")
 
     if temperature <= 0:
@@ -434,7 +412,7 @@ def conv_soft_argmax3d(
     if not torch.is_tensor(input):
         raise TypeError(f"Input type is not a torch.Tensor. Got {type(input)}")
 
-    if not len(input.shape) == 5:
+    if len(input.shape) != 5:
         raise ValueError(f"Invalid input shape, we expect BxCxDxHxW. Got: {input.shape}")
 
     if temperature <= 0:
@@ -528,8 +506,7 @@ def spatial_soft_argmax2d(
         tensor([[[1.0000, 1.0000]]])
     """
     input_soft: torch.Tensor = spatial_softmax2d(input, temperature)
-    output: torch.Tensor = spatial_expectation2d(input_soft, normalized_coordinates)
-    return output
+    return spatial_expectation2d(input_soft, normalized_coordinates)
 
 
 class SpatialSoftArgmax2d(nn.Module):
@@ -596,7 +573,7 @@ def conv_quad_interp3d(
     if not torch.is_tensor(input):
         raise TypeError(f"Input type is not a torch.Tensor. Got {type(input)}")
 
-    if not len(input.shape) == 5:
+    if len(input.shape) != 5:
         raise ValueError(f"Invalid input shape, we expect BxCxDxHxW. Got: {input.shape}")
 
     B, CH, D, H, W = input.shape

@@ -72,7 +72,7 @@ class ImageStitcher(nn.Module):
         kp1, kp2, idx = kwargs['keypoints0'], kwargs['keypoints1'], kwargs['batch_indexes']
         for i in range(len(idx.unique())):
             homos.append(self._estimate_homography(kp1[idx == i], kp2[idx == i]))
-        if len(homos) == 0:
+        if not homos:
             raise RuntimeError("Compute homography failed. No matched keypoints found.")
         return torch.cat(homos)
 
@@ -88,7 +88,7 @@ class ImageStitcher(nn.Module):
     def preprocess(self, image_1: torch.Tensor, image_2: torch.Tensor) -> Dict[str, torch.Tensor]:
         """Preprocess input to the required format."""
         # TODO: probably perform histogram matching here.
-        if isinstance(self.matcher, LoFTR) or isinstance(self.matcher, LocalFeatureMatcher):
+        if isinstance(self.matcher, (LoFTR, LocalFeatureMatcher)):
             input_dict: Dict[str, torch.Tensor] = {  # LofTR works on grayscale images only
                 "image0": rgb_to_grayscale(image_1),
                 "image1": rgb_to_grayscale(image_2)

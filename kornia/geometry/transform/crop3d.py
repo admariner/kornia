@@ -322,15 +322,13 @@ def crop_by_boxes3d(
             f"Got height {bbox[0]}, width {bbox[1]} and depth {bbox[2]}."
         )
 
-    patches: torch.Tensor = crop_by_transform_mat3d(
+    return crop_by_transform_mat3d(
         tensor,
         dst_trans_src,
         (int(bbox[0][0].item()), int(bbox[1][0].item()), int(bbox[2][0].item())),
         mode=interpolation,
         align_corners=align_corners,
     )
-
-    return patches
 
 
 def crop_by_transform_mat3d(
@@ -359,8 +357,11 @@ def crop_by_transform_mat3d(
     # simulate broadcasting
     dst_trans_src = transform.expand(tensor.shape[0], -1, -1)
 
-    patches: torch.Tensor = warp_affine3d(
-        tensor, dst_trans_src[:, :3, :], out_size, flags=mode, padding_mode=padding_mode, align_corners=align_corners
+    return warp_affine3d(
+        tensor,
+        dst_trans_src[:, :3, :],
+        out_size,
+        flags=mode,
+        padding_mode=padding_mode,
+        align_corners=align_corners,
     )
-
-    return patches

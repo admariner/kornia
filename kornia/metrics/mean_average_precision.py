@@ -114,18 +114,14 @@ def mean_average_precision(
             # We need 'original_ind' to update 'gt_class_boxes_detected'
 
             # If the maximum overlap is greater than the threshold of 0.5, it's a match
-            if max_overlap.item() > threshold:
-                # If this object has already not been detected, it's a true positive
-                if gt_class_boxes_detected[original_ind] == 0:
-                    gt_positives[d] = 1
-                    gt_class_boxes_detected[original_ind] = 1  # this object has now been detected/accounted for
-                # Otherwise, it's a false positive (since this object is already accounted for)
-                else:
-                    false_positives[d] = 1
-            # Otherwise, the detection occurs in a different location than the actual object, and is a false positive
+            if (
+                max_overlap.item() > threshold
+                and gt_class_boxes_detected[original_ind] == 0
+            ):
+                gt_positives[d] = 1
+                gt_class_boxes_detected[original_ind] = 1  # this object has now been detected/accounted for
             else:
                 false_positives[d] = 1
-
         # Compute cumulative precision and recall at each detection in the order of decreasing scores
         cumul_gt_positives = torch.cumsum(gt_positives, dim=0)  # (n_class_detections)
         cumul_false_positives = torch.cumsum(false_positives, dim=0)  # (n_class_detections)

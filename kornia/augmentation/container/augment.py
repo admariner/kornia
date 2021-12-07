@@ -155,7 +155,7 @@ class AugmentationSequential(ImageSequential):
 
         self.data_keys = [DataKey.get(inp) for inp in data_keys]
 
-        if not all(in_type in DataKey for in_type in self.data_keys):
+        if any(in_type not in DataKey for in_type in self.data_keys):
             raise AssertionError(f"`data_keys` must be in {DataKey}. Got {data_keys}.")
 
         if self.data_keys[0] != DataKey.INPUT:
@@ -267,20 +267,16 @@ class AugmentationSequential(ImageSequential):
             )
 
         if params is None:
-            if DataKey.INPUT in data_keys:
-                _input = args[data_keys.index(DataKey.INPUT)]
-                if isinstance(_input, (tuple, list)):
-                    inp = _input[0]
-                else:
-                    inp = _input
-                if self.contains_video_sequential:
-                    _, out_shape = self.autofill_dim(inp, dim_range=(3, 5))
-                else:
-                    _, out_shape = self.autofill_dim(inp, dim_range=(2, 4))
-                params = self.forward_parameters(out_shape)
-            else:
+            if DataKey.INPUT not in data_keys:
                 raise ValueError("`params` must be provided whilst INPUT is not in data_keys.")
 
+            _input = args[data_keys.index(DataKey.INPUT)]
+            inp = _input[0] if isinstance(_input, (tuple, list)) else _input
+            if self.contains_video_sequential:
+                _, out_shape = self.autofill_dim(inp, dim_range=(3, 5))
+            else:
+                _, out_shape = self.autofill_dim(inp, dim_range=(2, 4))
+            params = self.forward_parameters(out_shape)
         outputs: List[TensorWithTransformMat] = [None] * len(data_keys)  # type: ignore
         if DataKey.INPUT in data_keys:
             idx = data_keys.index(DataKey.INPUT)

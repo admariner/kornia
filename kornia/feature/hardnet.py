@@ -4,12 +4,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-urls: Dict[str, str] = {}
-urls["hardnet++"] = "https://github.com/DagnyT/hardnet/raw/master/pretrained/pretrained_all_datasets/HardNet++.pth"
-urls[
-    "liberty_aug"
-] = "https://github.com/DagnyT/hardnet/raw/master/pretrained/train_liberty_with_aug/checkpoint_liberty_with_aug.pth"  # noqa pylint: disable
-urls["hardnet8v2"] = "http://cmp.felk.cvut.cz/~mishkdmy/hardnet8v2.pt"  # pylint: disable
+urls: Dict[str, str] = {
+    'hardnet++': 'https://github.com/DagnyT/hardnet/raw/master/pretrained/pretrained_all_datasets/HardNet++.pth',
+    'liberty_aug': 'https://github.com/DagnyT/hardnet/raw/master/pretrained/train_liberty_with_aug/checkpoint_liberty_with_aug.pth',
+    'hardnet8v2': 'http://cmp.felk.cvut.cz/~mishkdmy/hardnet8v2.pt',
+}
 
 
 class HardNet(nn.Module):

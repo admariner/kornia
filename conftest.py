@@ -15,8 +15,7 @@ def get_test_devices() -> Dict[str, torch.device]:
     Return:
         dict(str, torch.device): list with devices names.
     """
-    devices: Dict[str, torch.device] = {}
-    devices["cpu"] = torch.device("cpu")
+    devices: Dict[str, torch.device] = {'cpu': torch.device("cpu")}
     if torch.cuda.is_available():
         devices["cuda"] = torch.device("cuda:0")
     if kornia.xla_is_available():
@@ -32,11 +31,11 @@ def get_test_dtypes() -> Dict[str, torch.dtype]:
     Return:
         dict(str, torch.dtype): list with dtype names.
     """
-    dtypes: Dict[str, torch.dtype] = {}
-    dtypes["float16"] = torch.float16
-    dtypes["float32"] = torch.float32
-    dtypes["float64"] = torch.float64
-    return dtypes
+    return {
+        'float16': torch.float16,
+        'float32': torch.float32,
+        'float64': torch.float64,
+    }
 
 
 # setup the devices to test the source code

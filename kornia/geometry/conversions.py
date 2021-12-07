@@ -212,7 +212,7 @@ def convert_affinematrix_to_homography(A: torch.Tensor) -> torch.Tensor:
     if not isinstance(A, torch.Tensor):
         raise TypeError(f"Input type is not a torch.Tensor. Got {type(A)}")
 
-    if not (len(A.shape) == 3 and A.shape[-2:] == (2, 3)):
+    if len(A.shape) != 3 or A.shape[-2:] != (2, 3):
         raise ValueError(f"Input matrix must be a Bx2x3 tensor. Got {A.shape}")
 
     return _convert_affinematrix_to_homography_impl(A)
@@ -240,7 +240,7 @@ def convert_affinematrix_to_homography3d(A: torch.Tensor) -> torch.Tensor:
     if not isinstance(A, torch.Tensor):
         raise TypeError(f"Input type is not a torch.Tensor. Got {type(A)}")
 
-    if not (len(A.shape) == 3 and A.shape[-2:] == (3, 4)):
+    if len(A.shape) != 3 or A.shape[-2:] != (3, 4):
         raise ValueError(f"Input matrix must be a Bx3x4 tensor. Got {A.shape}")
 
     return _convert_affinematrix_to_homography_impl(A)
@@ -353,7 +353,7 @@ def rotation_matrix_to_angle_axis(rotation_matrix: torch.Tensor) -> torch.Tensor
     if not isinstance(rotation_matrix, torch.Tensor):
         raise TypeError(f"Input type is not a torch.Tensor. Got {type(rotation_matrix)}")
 
-    if not rotation_matrix.shape[-2:] == (3, 3):
+    if rotation_matrix.shape[-2:] != (3, 3):
         raise ValueError(f"Input size must be a (*, 3, 3) tensor. Got {rotation_matrix.shape}")
     quaternion: torch.Tensor = rotation_matrix_to_quaternion(rotation_matrix, order=QuaternionCoeffOrder.WXYZ)
     return quaternion_to_angle_axis(quaternion, order=QuaternionCoeffOrder.WXYZ)
@@ -480,7 +480,7 @@ def normalize_quaternion(quaternion: torch.Tensor, eps: float = 1.0e-12) -> torc
     if not isinstance(quaternion, torch.Tensor):
         raise TypeError(f"Input type is not a torch.Tensor. Got {type(quaternion)}")
 
-    if not quaternion.shape[-1] == 4:
+    if quaternion.shape[-1] != 4:
         raise ValueError(f"Input must be a tensor of shape (*, 4). Got {quaternion.shape}")
     return F.normalize(quaternion, p=2.0, dim=-1, eps=eps)
 
@@ -515,12 +515,14 @@ def quaternion_to_rotation_matrix(
     if not isinstance(quaternion, torch.Tensor):
         raise TypeError(f"Input type is not a torch.Tensor. Got {type(quaternion)}")
 
-    if not quaternion.shape[-1] == 4:
+    if quaternion.shape[-1] != 4:
         raise ValueError(f"Input must be a tensor of shape (*, 4). Got {quaternion.shape}")
 
-    if not torch.jit.is_scripting():
-        if order.name not in QuaternionCoeffOrder.__members__.keys():
-            raise ValueError(f"order must be one of {QuaternionCoeffOrder.__members__.keys()}")
+    if (
+        not torch.jit.is_scripting()
+        and order.name not in QuaternionCoeffOrder.__members__.keys()
+    ):
+        raise ValueError(f"order must be one of {QuaternionCoeffOrder.__members__.keys()}")
 
     if order == QuaternionCoeffOrder.XYZW:
         warnings.warn(
@@ -601,12 +603,14 @@ def quaternion_to_angle_axis(
     if not torch.is_tensor(quaternion):
         raise TypeError(f"Input type is not a torch.Tensor. Got {type(quaternion)}")
 
-    if not quaternion.shape[-1] == 4:
+    if quaternion.shape[-1] != 4:
         raise ValueError(f"Input must be a tensor of shape Nx4 or 4. Got {quaternion.shape}")
 
-    if not torch.jit.is_scripting():
-        if order.name not in QuaternionCoeffOrder.__members__.keys():
-            raise ValueError(f"order must be one of {QuaternionCoeffOrder.__members__.keys()}")
+    if (
+        not torch.jit.is_scripting()
+        and order.name not in QuaternionCoeffOrder.__members__.keys()
+    ):
+        raise ValueError(f"order must be one of {QuaternionCoeffOrder.__members__.keys()}")
 
     if order == QuaternionCoeffOrder.XYZW:
         warnings.warn(
@@ -677,9 +681,11 @@ def quaternion_log_to_exp(
     if not quaternion.shape[-1] == 3:
         raise ValueError(f"Input must be a tensor of shape (*, 3). Got {quaternion.shape}")
 
-    if not torch.jit.is_scripting():
-        if order.name not in QuaternionCoeffOrder.__members__.keys():
-            raise ValueError(f"order must be one of {QuaternionCoeffOrder.__members__.keys()}")
+    if (
+        not torch.jit.is_scripting()
+        and order.name not in QuaternionCoeffOrder.__members__.keys()
+    ):
+        raise ValueError(f"order must be one of {QuaternionCoeffOrder.__members__.keys()}")
 
     if order == QuaternionCoeffOrder.XYZW:
         warnings.warn(
@@ -730,12 +736,14 @@ def quaternion_exp_to_log(
     if not isinstance(quaternion, torch.Tensor):
         raise TypeError(f"Input type is not a torch.Tensor. Got {type(quaternion)}")
 
-    if not quaternion.shape[-1] == 4:
+    if quaternion.shape[-1] != 4:
         raise ValueError(f"Input must be a tensor of shape (*, 4). Got {quaternion.shape}")
 
-    if not torch.jit.is_scripting():
-        if order.name not in QuaternionCoeffOrder.__members__.keys():
-            raise ValueError(f"order must be one of {QuaternionCoeffOrder.__members__.keys()}")
+    if (
+        not torch.jit.is_scripting()
+        and order.name not in QuaternionCoeffOrder.__members__.keys()
+    ):
+        raise ValueError(f"order must be one of {QuaternionCoeffOrder.__members__.keys()}")
 
     if order == QuaternionCoeffOrder.XYZW:
         warnings.warn(
@@ -758,12 +766,11 @@ def quaternion_exp_to_log(
     # compute quaternion norm
     norm_q: torch.Tensor = torch.norm(quaternion_vector, p=2, dim=-1, keepdim=True).clamp(min=eps)
 
-    # apply log map
-    quaternion_log: torch.Tensor = (
-        quaternion_vector * torch.acos(torch.clamp(quaternion_scalar, min=-1.0, max=1.0)) / norm_q
+    return (
+        quaternion_vector
+        * torch.acos(torch.clamp(quaternion_scalar, min=-1.0, max=1.0))
+        / norm_q
     )
-
-    return quaternion_log
 
 
 # based on:
@@ -798,12 +805,14 @@ def angle_axis_to_quaternion(
     if not torch.is_tensor(angle_axis):
         raise TypeError(f"Input type is not a torch.Tensor. Got {type(angle_axis)}")
 
-    if not angle_axis.shape[-1] == 3:
+    if angle_axis.shape[-1] != 3:
         raise ValueError(f"Input must be a tensor of shape Nx3 or 3. Got {angle_axis.shape}")
 
-    if not torch.jit.is_scripting():
-        if order.name not in QuaternionCoeffOrder.__members__.keys():
-            raise ValueError(f"order must be one of {QuaternionCoeffOrder.__members__.keys()}")
+    if (
+        not torch.jit.is_scripting()
+        and order.name not in QuaternionCoeffOrder.__members__.keys()
+    ):
+        raise ValueError(f"order must be one of {QuaternionCoeffOrder.__members__.keys()}")
 
     if order == QuaternionCoeffOrder.XYZW:
         warnings.warn(
@@ -1021,7 +1030,9 @@ def normalize_homography(
     if not isinstance(dst_pix_trans_src_pix, torch.Tensor):
         raise TypeError(f"Input type is not a torch.Tensor. Got {type(dst_pix_trans_src_pix)}")
 
-    if not (len(dst_pix_trans_src_pix.shape) == 3 or dst_pix_trans_src_pix.shape[-2:] == (3, 3)):
+    if len(dst_pix_trans_src_pix.shape) != 3 and dst_pix_trans_src_pix.shape[
+        -2:
+    ] != (3, 3):
         raise ValueError(f"Input dst_pix_trans_src_pix must be a Bx3x3 tensor. Got {dst_pix_trans_src_pix.shape}")
 
     # source and destination sizes
@@ -1034,9 +1045,9 @@ def normalize_homography(
     src_pix_trans_src_norm = _torch_inverse_cast(src_norm_trans_src_pix)
     dst_norm_trans_dst_pix: torch.Tensor = normal_transform_pixel(dst_h, dst_w).to(dst_pix_trans_src_pix)
 
-    # compute chain transformations
-    dst_norm_trans_src_norm: torch.Tensor = dst_norm_trans_dst_pix @ (dst_pix_trans_src_pix @ src_pix_trans_src_norm)
-    return dst_norm_trans_src_norm
+    return dst_norm_trans_dst_pix @ (
+        dst_pix_trans_src_pix @ src_pix_trans_src_norm
+    )
 
 
 def normal_transform_pixel(
@@ -1122,7 +1133,9 @@ def denormalize_homography(
     if not isinstance(dst_pix_trans_src_pix, torch.Tensor):
         raise TypeError(f"Input type is not a torch.Tensor. Got {type(dst_pix_trans_src_pix)}")
 
-    if not (len(dst_pix_trans_src_pix.shape) == 3 or dst_pix_trans_src_pix.shape[-2:] == (3, 3)):
+    if len(dst_pix_trans_src_pix.shape) != 3 and dst_pix_trans_src_pix.shape[
+        -2:
+    ] != (3, 3):
         raise ValueError(f"Input dst_pix_trans_src_pix must be a Bx3x3 tensor. Got {dst_pix_trans_src_pix.shape}")
 
     # source and destination sizes
@@ -1134,9 +1147,9 @@ def denormalize_homography(
 
     dst_norm_trans_dst_pix: torch.Tensor = normal_transform_pixel(dst_h, dst_w).to(dst_pix_trans_src_pix)
     dst_denorm_trans_dst_pix = _torch_inverse_cast(dst_norm_trans_dst_pix)
-    # compute chain transformations
-    dst_norm_trans_src_norm: torch.Tensor = dst_denorm_trans_dst_pix @ (dst_pix_trans_src_pix @ src_norm_trans_src_pix)
-    return dst_norm_trans_src_norm
+    return dst_denorm_trans_dst_pix @ (
+        dst_pix_trans_src_pix @ src_norm_trans_src_pix
+    )
 
 
 def normalize_homography3d(
@@ -1159,7 +1172,9 @@ def normalize_homography3d(
     if not isinstance(dst_pix_trans_src_pix, torch.Tensor):
         raise TypeError(f"Input type is not a torch.Tensor. Got {type(dst_pix_trans_src_pix)}")
 
-    if not (len(dst_pix_trans_src_pix.shape) == 3 or dst_pix_trans_src_pix.shape[-2:] == (4, 4)):
+    if len(dst_pix_trans_src_pix.shape) != 3 and dst_pix_trans_src_pix.shape[
+        -2:
+    ] != (4, 4):
         raise ValueError(f"Input dst_pix_trans_src_pix must be a Bx3x3 tensor. Got {dst_pix_trans_src_pix.shape}")
 
     # source and destination sizes
@@ -1170,6 +1185,6 @@ def normalize_homography3d(
 
     src_pix_trans_src_norm = _torch_inverse_cast(src_norm_trans_src_pix)
     dst_norm_trans_dst_pix: torch.Tensor = normal_transform_pixel3d(dst_d, dst_h, dst_w).to(dst_pix_trans_src_pix)
-    # compute chain transformations
-    dst_norm_trans_src_norm: torch.Tensor = dst_norm_trans_dst_pix @ (dst_pix_trans_src_pix @ src_pix_trans_src_norm)
-    return dst_norm_trans_src_norm
+    return dst_norm_trans_dst_pix @ (
+        dst_pix_trans_src_pix @ src_pix_trans_src_norm
+    )

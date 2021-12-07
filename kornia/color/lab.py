@@ -59,9 +59,7 @@ def rgb_to_lab(image: torch.Tensor) -> torch.Tensor:
     a: torch.Tensor = 500.0 * (x - y)
     _b: torch.Tensor = 200.0 * (y - z)
 
-    out: torch.Tensor = torch.stack([L, a, _b], dim=-3)
-
-    return out
+    return torch.stack([L, a, _b], dim=-3)
 
 
 def lab_to_rgb(image: torch.Tensor, clip: bool = True) -> torch.Tensor:

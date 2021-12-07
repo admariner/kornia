@@ -20,8 +20,7 @@ def get_sift_pooling_kernel(ksize: int = 25) -> torch.Tensor:
     """
     ks_2: float = float(ksize) / 2.0
     xc2: torch.Tensor = ks_2 - (torch.arange(ksize).float() + 0.5 - ks_2).abs()  # type: ignore
-    kernel: torch.Tensor = torch.ger(xc2, xc2) / (ks_2 ** 2)
-    return kernel
+    return torch.ger(xc2, xc2) / (ks_2 ** 2)
 
 
 def get_sift_bin_ksize_stride_pad(patch_size: int, num_spatial_bins: int) -> Tuple:
@@ -135,7 +134,7 @@ class SIFTDescriptor(nn.Module):
     def forward(self, input):
         if not isinstance(input, torch.Tensor):
             raise TypeError(f"Input type is not a torch.Tensor. Got {type(input)}")
-        if not len(input.shape) == 4:
+        if len(input.shape) != 4:
             raise ValueError(f"Invalid input shape, we expect Bx1xHxW. Got: {input.shape}")
         B, CH, W, H = input.size()
         if (W != self.patch_size) or (H != self.patch_size) or (CH != 1):
@@ -163,7 +162,7 @@ class SIFTDescriptor(nn.Module):
         wo1_big: torch.Tensor = wo1_big_ * mag
 
         ang_bins = []
-        for i in range(0, self.num_ang_bins):
+        for i in range(self.num_ang_bins):
             out = self.pk((bo0_big == i).to(input.dtype) * wo0_big + (bo1_big == i).to(input.dtype) * wo1_big)
             ang_bins.append(out)
         ang_bins = torch.cat(ang_bins, dim=1)

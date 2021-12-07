@@ -405,8 +405,7 @@ class RandomErasing(IntensityAugmentationBase2D):
         bboxes = bbox_generator(params["xs"], params["ys"], params["widths"], params["heights"])
         mask = bbox_to_mask(bboxes, w, h)  # Returns B, H, W
         mask = mask.unsqueeze(1).repeat(1, c, 1, 1).to(input)  # Transform to B, c, H, W
-        transformed = torch.where(mask == 1.0, values, input)
-        return transformed
+        return torch.where(mask == 1.0, values, input)
 
 
 class RandomPerspective(GeometricAugmentationBase2D):
@@ -1002,8 +1001,9 @@ class RandomCrop(GeometricAugmentationBase2D):
         return input
 
     def compute_transformation(self, input: torch.Tensor, params: Dict[str, torch.Tensor]) -> torch.Tensor:
-        transform: torch.Tensor = get_perspective_transform(params["src"].to(input), params["dst"].to(input))
-        return transform
+        return get_perspective_transform(
+            params["src"].to(input), params["dst"].to(input)
+        )
 
     def apply_transform(
         self, input: torch.Tensor, params: Dict[str, torch.Tensor], transform: Optional[torch.Tensor] = None
@@ -1092,7 +1092,7 @@ class RandomCrop(GeometricAugmentationBase2D):
             # undo the pre-crop if nothing happened.
             if isinstance(out, tuple) and isinstance(input, tuple):
                 return input[0], out[1]
-            if isinstance(out, tuple) and not isinstance(input, tuple):
+            if isinstance(out, tuple):
                 return input, out[1]
             return input
         return out
@@ -1478,10 +1478,7 @@ class RandomSolarize(IntensityAugmentationBase2D):
     ) -> torch.Tensor:
         thresholds = params["thresholds"]
         additions: Optional[torch.Tensor]
-        if "additions" in params:
-            additions = params["additions"]
-        else:
-            additions = None
+        additions = params.get("additions")
         return solarize(input, thresholds, additions)
 
 

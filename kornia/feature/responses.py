@@ -66,13 +66,13 @@ def harris_response(
     if not isinstance(input, torch.Tensor):
         raise TypeError(f"Input type is not a torch.Tensor. Got {type(input)}")
 
-    if not len(input.shape) == 4:
+    if len(input.shape) != 4:
         raise ValueError(f"Invalid input shape, we expect BxCxHxW. Got: {input.shape}")
 
     if sigmas is not None:
         if not isinstance(sigmas, torch.Tensor):
             raise TypeError(f"sigmas type is not a torch.Tensor. Got {type(sigmas)}")
-        if (not len(sigmas.shape) == 1) or (sigmas.size(0) != input.size(0)):
+        if len(sigmas.shape) != 1 or sigmas.size(0) != input.size(0):
             raise ValueError(f"Invalid sigmas shape, we expect B == input.size(0). Got: {sigmas.shape}")
 
     gradients: torch.Tensor = spatial_gradient(input, grads_mode)
@@ -150,7 +150,7 @@ def gftt_response(
     if not isinstance(input, torch.Tensor):
         raise TypeError(f"Input type is not a torch.Tensor. Got {type(input)}")
 
-    if not len(input.shape) == 4:
+    if len(input.shape) != 4:
         raise ValueError(f"Invalid input shape, we expect BxCxHxW. Got: {input.shape}")
 
     gradients: torch.Tensor = spatial_gradient(input, grads_mode)
@@ -232,14 +232,14 @@ def hessian_response(
     if not isinstance(input, torch.Tensor):
         raise TypeError(f"Input type is not a torch.Tensor. Got {type(input)}")
 
-    if not len(input.shape) == 4:
+    if len(input.shape) != 4:
         raise ValueError(f"Invalid input shape, we expect BxCxHxW. Got: {input.shape}")
 
     if sigmas is not None:
         if not isinstance(sigmas, torch.Tensor):
             raise TypeError(f"sigmas type is not a torch.Tensor. Got {type(sigmas)}")
 
-        if (not len(sigmas.shape) == 1) or (sigmas.size(0) != input.size(0)):
+        if len(sigmas.shape) != 1 or sigmas.size(0) != input.size(0):
             raise ValueError(f"Invalid sigmas shape, we expect B == input.size(0). Got: {sigmas.shape}")
 
     gradients: torch.Tensor = spatial_gradient(input, grads_mode, 2)
@@ -268,7 +268,7 @@ def dog_response(input: torch.Tensor) -> torch.Tensor:
     if not isinstance(input, torch.Tensor):
         raise TypeError(f"Input type is not a torch.Tensor. Got {type(input)}")
 
-    if not len(input.shape) == 5:
+    if len(input.shape) != 5:
         raise ValueError(f"Invalid input shape, we expect BxCxDxHxW. Got: {input.shape}")
 
     return input[:, :, 1:] - input[:, :, :-1]

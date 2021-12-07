@@ -13,9 +13,7 @@ __all__ = ['tensor_to_gradcheck_var', 'create_eye_batch', 'xla_is_available', 'a
 
 def xla_is_available() -> bool:
     """Return whether `torch_xla` is available in the system."""
-    if importlib.util.find_spec("torch_xla") is not None:
-        return True
-    return False
+    return importlib.util.find_spec("torch_xla") is not None
 
 
 # TODO: Isn't this function duplicated with eye_like?
@@ -42,10 +40,10 @@ def tensor_to_gradcheck_var(tensor, dtype=torch.float64, requires_grad=True):
 
 
 def dict_to(data: dict, device: torch.device, dtype: torch.dtype) -> dict:
-    out: dict = {}
-    for key, val in data.items():
-        out[key] = val.to(device, dtype) if isinstance(val, torch.Tensor) else val
-    return out
+    return {
+        key: val.to(device, dtype) if isinstance(val, torch.Tensor) else val
+        for key, val in data.items()
+    }
 
 
 def compute_patch_error(x, y, h, w):
@@ -62,8 +60,7 @@ def check_is_tensor(obj):
 def create_rectified_fundamental_matrix(batch_size):
     """Create a batch of rectified fundamental matrices of shape Bx3x3."""
     F_rect = torch.tensor([[0.0, 0.0, 0.0], [0.0, 0.0, -1.0], [0.0, 1.0, 0.0]]).view(1, 3, 3)
-    F_repeat = F_rect.repeat(batch_size, 1, 1)
-    return F_repeat
+    return F_rect.repeat(batch_size, 1, 1)
 
 
 def create_random_fundamental_matrix(batch_size, std_val=1e-3):

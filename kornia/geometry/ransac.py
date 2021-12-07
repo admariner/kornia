@@ -87,13 +87,12 @@ class RANSAC(nn.Module):
                                       kp1: torch.Tensor,
                                       kp2: torch.Tensor) -> torch.Tensor:
         batch_size, sample_size = kp1.shape[:2]
-        H = self.minimal_solver(kp1,
+        return self.minimal_solver(kp1,
                                 kp2,
                                 torch.ones(batch_size,
                                            sample_size,
                                            dtype=kp1.dtype,
                                            device=kp1.device))
-        return H
 
     def verify(self,
                kp1: torch.Tensor,
@@ -141,13 +140,12 @@ class RANSAC(nn.Module):
         kp1_inl = kp1[inliers][None]
         kp2_inl = kp2[inliers][None]
         num_inl = kp1_inl.size(1)
-        model = self.polisher_solver(kp1_inl,
+        return self.polisher_solver(kp1_inl,
                                      kp2_inl,
                                      torch.ones(1,
                                                 num_inl,
                                                 dtype=kp1_inl.dtype,
                                                 device=kp1_inl.device))
-        return model
 
     def forward(self,
                 kp1: torch.Tensor,
@@ -168,11 +166,11 @@ class RANSAC(nn.Module):
             raise TypeError(f"Input kp1 is not torch.Tensor. Got {type(kp1)}")
         if not isinstance(kp2, torch.Tensor):
             raise TypeError(f"Input kp2 is not torch.Tensor. Got {type(kp2)}")
-        if not len(kp1.shape) == 2:
+        if len(kp1.shape) != 2:
             raise ValueError(f"Invalid kp1 shape, we expect Nx2 Got: {kp1.shape}")
-        if not len(kp2.shape) == 2:
+        if len(kp2.shape) != 2:
             raise ValueError(f"Invalid kp2 shape, we expect Nx2 Got: {kp2.shape}")
-        if not (kp1.shape[0] == kp2.shape[0]) or (kp1.shape[0] < self.minimal_sample_size):
+        if kp1.shape[0] != kp2.shape[0] or kp1.shape[0] < self.minimal_sample_size:
             raise ValueError(f"kp1 and kp2 should be \
                              equal shape at at least [{self.minimal_sample_size}, 2], \
                              got {kp1.shape}, {kp2.shape}")
@@ -200,18 +198,16 @@ class RANSAC(nn.Module):
             # Store far-the-best model and (optionally) do a local optimization
             if model_score > best_score_total:
                 # Local optimization
-                for lo_step in range(self.max_lo_iters):
+                for _ in range(self.max_lo_iters):
                     model_lo = self.polish_model(kp1, kp2, inliers)
                     if (model_lo is None) or (len(model_lo) == 0):
                         continue
                     _, inliers_lo, score_lo = self.verify(kp1, kp2, model_lo, self.inl_th)
-                    # print (f"Orig score = {best_model_score}, LO score = {score_lo} TC={num_tc}")
-                    if score_lo > model_score:
-                        model = model_lo.clone()[0]
-                        inliers = inliers_lo.clone()
-                        model_score = score_lo
-                    else:
+                    if score_lo <= model_score:
                         break
+                    model = model_lo.clone()[0]
+                    inliers = inliers_lo.clone()
+                    model_score = score_lo
                 # Now storing the best model
                 best_model_total = model.clone()
                 inliers_best_total = inliers.clone()

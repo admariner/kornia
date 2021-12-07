@@ -96,8 +96,7 @@ class PlainUniformGenerator(RandomGeneratorBase):
                 self.register_buffer(name, factor)
 
     def __repr__(self) -> str:
-        repr = ", ".join([f"{name}={factor}" for factor, name, _, _ in self.samplers])
-        return repr
+        return ", ".join([f"{name}={factor}" for factor, name, _, _ in self.samplers])
 
     def make_samplers(self, device: torch.device, dtype: torch.dtype) -> None:
         self.sampler_dict: Dict[str, Distribution] = {}
@@ -143,8 +142,7 @@ class ProbabilityGenerator(RandomGeneratorBase):
         self.p = p
 
     def __repr__(self) -> str:
-        repr = f"p={self.p}"
-        return repr
+        return f"p={self.p}"
 
     def make_samplers(self, device: torch.device, dtype: torch.dtype) -> None:
         p = torch.tensor(float(self.p), device=device, dtype=dtype)
@@ -203,8 +201,7 @@ class AffineGenerator(RandomGeneratorBase):
         self.shear = shear
 
     def __repr__(self) -> str:
-        repr = f"degrees={self.degrees}, translate={self.translate}, scale={self.scale}, shear={self.shear}"
-        return repr
+        return f"degrees={self.degrees}, translate={self.translate}, scale={self.scale}, shear={self.shear}"
 
     def make_samplers(self, device: torch.device, dtype: torch.dtype) -> None:
         _degrees = _range_bound(self.degrees, 'degrees', 0, (-360, 360)).to(device=device, dtype=dtype)
@@ -348,8 +345,7 @@ class ColorJitterGenerator(RandomGeneratorBase):
         self.hue = hue
 
     def __repr__(self) -> str:
-        repr = f"brightness={self.brightness}, contrast={self.contrast}, saturation={self.saturation}, hue={self.hue}"
-        return repr
+        return f"brightness={self.brightness}, contrast={self.contrast}, saturation={self.saturation}, hue={self.hue}"
 
     def make_samplers(self, device: torch.device, dtype: torch.dtype) -> None:
         brightness: torch.Tensor = _range_bound(
@@ -485,15 +481,15 @@ class CropGenerator(RandomGeneratorBase):
                 size[:, 1],
                 size[:, 0],
             )
-        else:
-            if not (
+        elif not (
                 len(self.resize_to) == 2
                 and isinstance(self.resize_to[0], (int,))
                 and isinstance(self.resize_to[1], (int,))
                 and self.resize_to[0] > 0
                 and self.resize_to[1] > 0
             ):
-                raise AssertionError(f"`resize_to` must be a tuple of 2 positive integers. Got {self.resize_to}.")
+            raise AssertionError(f"`resize_to` must be a tuple of 2 positive integers. Got {self.resize_to}.")
+        else:
             crop_dst = torch.tensor(
                 [[
                     [0, 0],
@@ -552,8 +548,7 @@ class ResizedCropGenerator(CropGenerator):
         super().__init__(size=output_size, resize_to=self.output_size)  # fake an intermedia crop size
 
     def __repr__(self) -> str:
-        repr = f"scale={self.scale}, resize_to={self.ratio}, output_size={self.output_size}"
-        return repr
+        return f"scale={self.scale}, resize_to={self.ratio}, output_size={self.output_size}"
 
     def make_samplers(self, device: torch.device, dtype: torch.dtype) -> None:
         scale = torch.as_tensor(self.scale, device=device, dtype=dtype)

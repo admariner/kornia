@@ -21,10 +21,7 @@ def _compute_padding(kernel_size: List[int]) -> List[int]:
 
     for i in range(len(kernel_size)):
         computed_tmp = computed[-(i + 1)]
-        if kernel_size[i] % 2 == 0:
-            padding = computed_tmp - 1
-        else:
-            padding = computed_tmp
+        padding = computed_tmp - 1 if kernel_size[i] % 2 == 0 else computed_tmp
         out_padding[2 * i + 0] = padding
         out_padding[2 * i + 1] = computed_tmp
     return out_padding
@@ -91,10 +88,10 @@ def filter2d(
     if padding not in ['valid', 'same']:
         raise ValueError(f"Invalid padding mode, we expect 'valid' or 'same'. Got: {padding}")
 
-    if not len(input.shape) == 4:
+    if len(input.shape) != 4:
         raise ValueError(f"Invalid input shape, we expect BxCxHxW. Got: {input.shape}")
 
-    if (not len(kernel.shape) == 3) and not ((kernel.shape[0] == 0) or (kernel.shape[0] == input.shape[0])):
+    if len(kernel.shape) != 3 and not kernel.shape[0] in [0, input.shape[0]]:
         raise ValueError(f"Invalid kernel shape, we expect 1xHxW or BxHxW. Got: {kernel.shape}")
 
     # prepare kernel
@@ -120,12 +117,11 @@ def filter2d(
     # convolve the tensor with the kernel.
     output = F.conv2d(input, tmp_kernel, groups=tmp_kernel.size(0), padding=0, stride=1)
 
-    if padding == 'same':
-        out = output.view(b, c, h, w)
-    else:
-        out = output.view(b, c, h - height + 1, w - width + 1)
-
-    return out
+    return (
+        output.view(b, c, h, w)
+        if padding == 'same'
+        else output.view(b, c, h - height + 1, w - width + 1)
+    )
 
 
 def filter2d_separable(input: torch.Tensor,
@@ -176,8 +172,9 @@ def filter2d_separable(input: torch.Tensor,
                   [0., 0., 0., 0., 0.]]]])
     """
     out_x = filter2d(input, kernel_x.unsqueeze(0), border_type, normalized, padding)
-    out = filter2d(out_x, kernel_y.unsqueeze(-1), border_type, normalized, padding)
-    return out
+    return filter2d(
+        out_x, kernel_y.unsqueeze(-1), border_type, normalized, padding
+    )
 
 
 def filter3d(
@@ -251,10 +248,10 @@ def filter3d(
     if not isinstance(border_type, str):
         raise TypeError(f"Input border_type is not string. Got {type(kernel)}")
 
-    if not len(input.shape) == 5:
+    if len(input.shape) != 5:
         raise ValueError(f"Invalid input shape, we expect BxCxDxHxW. Got: {input.shape}")
 
-    if not len(kernel.shape) == 4 and kernel.shape[0] != 1:
+    if len(kernel.shape) != 4 and kernel.shape[0] != 1:
         raise ValueError(f"Invalid kernel shape, we expect 1xDxHxW. Got: {kernel.shape}")
 
     # prepare kernel

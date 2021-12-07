@@ -63,7 +63,7 @@ def focal_loss(
     if not isinstance(input, torch.Tensor):
         raise TypeError(f"Input type is not a torch.Tensor. Got {type(input)}")
 
-    if not len(input.shape) >= 2:
+    if len(input.shape) < 2:
         raise ValueError(f"Invalid input shape, we expect BxCx*. Got: {input.shape}")
 
     if input.size(0) != target.size(0):
@@ -74,7 +74,7 @@ def focal_loss(
     if target.size()[1:] != input.size()[2:]:
         raise ValueError(f'Expected target size {out_size}, got {target.size()}')
 
-    if not input.device == target.device:
+    if input.device != target.device:
         raise ValueError(f"input and target must be in the same device. Got: {input.device} and {target.device}")
 
     # compute softmax over the classes axis
@@ -90,10 +90,10 @@ def focal_loss(
     focal = -alpha * weight * log_input_soft
     loss_tmp = torch.einsum('bc...,bc...->b...', (target_one_hot, focal))
 
-    if reduction == 'none':
-        loss = loss_tmp
-    elif reduction == 'mean':
+    if reduction == 'mean':
         loss = torch.mean(loss_tmp)
+    elif reduction == 'none':
+        loss = loss_tmp
     elif reduction == 'sum':
         loss = torch.sum(loss_tmp)
     else:
@@ -201,7 +201,7 @@ def binary_focal_loss_with_logits(
     if not isinstance(input, torch.Tensor):
         raise TypeError(f"Input type is not a torch.Tensor. Got {type(input)}")
 
-    if not len(input.shape) >= 2:
+    if len(input.shape) < 2:
         raise ValueError(f"Invalid input shape, we expect BxCx*. Got: {input.shape}")
 
     if input.size(0) != target.size(0):
@@ -213,10 +213,10 @@ def binary_focal_loss_with_logits(
         1 - alpha
     ) * torch.pow(probs_pos, gamma) * (1.0 - target) * F.logsigmoid(-input)
 
-    if reduction == 'none':
-        loss = loss_tmp
-    elif reduction == 'mean':
+    if reduction == 'mean':
         loss = torch.mean(loss_tmp)
+    elif reduction == 'none':
+        loss = loss_tmp
     elif reduction == 'sum':
         loss = torch.sum(loss_tmp)
     else:
