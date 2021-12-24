@@ -38,10 +38,7 @@ def adjust_saturation_raw(input: torch.Tensor, saturation_factor: Union[float, t
     # transform the hue value and appl module
     s_out: torch.Tensor = torch.clamp(s * saturation_factor, min=0, max=1)
 
-    # pack back back the corrected hue
-    out: torch.Tensor = torch.cat([h, s_out, v], dim=-3)
-
-    return out
+    return torch.cat([h, s_out, v], dim=-3)
 
 
 def adjust_saturation(input: torch.Tensor, saturation_factor: Union[float, torch.Tensor]) -> torch.Tensor:
@@ -80,10 +77,7 @@ def adjust_saturation(input: torch.Tensor, saturation_factor: Union[float, torch
     # perform the conversion
     x_adjusted: torch.Tensor = adjust_saturation_raw(x_hsv, saturation_factor)
 
-    # convert back to rgb
-    out: torch.Tensor = hsv_to_rgb(x_adjusted)
-
-    return out
+    return hsv_to_rgb(x_adjusted)
 
 
 def adjust_hue_raw(input: torch.Tensor, hue_factor: Union[float, torch.Tensor]) -> torch.Tensor:
@@ -117,10 +111,7 @@ def adjust_hue_raw(input: torch.Tensor, hue_factor: Union[float, torch.Tensor]) 
     divisor: float = 2 * pi
     h_out: torch.Tensor = torch.fmod(h + hue_factor, divisor)
 
-    # pack back back the corrected hue
-    out: torch.Tensor = torch.cat([h_out, s, v], dim=-3)
-
-    return out
+    return torch.cat([h_out, s, v], dim=-3)
 
 
 def adjust_hue(input: torch.Tensor, hue_factor: Union[float, torch.Tensor]) -> torch.Tensor:
@@ -161,10 +152,7 @@ def adjust_hue(input: torch.Tensor, hue_factor: Union[float, torch.Tensor]) -> t
     # perform the conversion
     x_adjusted: torch.Tensor = adjust_hue_raw(x_hsv, hue_factor)
 
-    # convert back to rgb
-    out: torch.Tensor = hsv_to_rgb(x_adjusted)
-
-    return out
+    return hsv_to_rgb(x_adjusted)
 
 
 def adjust_gamma(
@@ -236,10 +224,7 @@ def adjust_gamma(
     # Apply the gamma correction
     x_adjust: torch.Tensor = gain * torch.pow(input, gamma)
 
-    # Truncate between pixel values
-    out: torch.Tensor = torch.clamp(x_adjust, 0.0, 1.0)
-
-    return out
+    return torch.clamp(x_adjust, 0.0, 1.0)
 
 
 def adjust_contrast(input: torch.Tensor, contrast_factor: Union[float, torch.Tensor]) -> torch.Tensor:
@@ -296,10 +281,7 @@ def adjust_contrast(input: torch.Tensor, contrast_factor: Union[float, torch.Ten
     # Apply contrast factor to each channel
     x_adjust: torch.Tensor = input * contrast_factor
 
-    # Truncate between pixel values
-    out: torch.Tensor = torch.clamp(x_adjust, 0.0, 1.0)
-
-    return out
+    return torch.clamp(x_adjust, 0.0, 1.0)
 
 
 def adjust_brightness(input: torch.Tensor, brightness_factor: Union[float, torch.Tensor]) -> torch.Tensor:
@@ -352,10 +334,7 @@ def adjust_brightness(input: torch.Tensor, brightness_factor: Union[float, torch
     # Apply brightness factor to each channel
     x_adjust: torch.Tensor = input + brightness_factor
 
-    # Truncate between pixel values
-    out: torch.Tensor = torch.clamp(x_adjust, 0.0, 1.0)
-
-    return out
+    return torch.clamp(x_adjust, 0.0, 1.0)
 
 
 def _solarize(input: torch.Tensor, thresholds: Union[float, torch.Tensor] = 0.5) -> torch.Tensor:
@@ -378,7 +357,7 @@ def _solarize(input: torch.Tensor, thresholds: Union[float, torch.Tensor] = 0.5)
         raise TypeError(f"The factor should be either a float or torch.Tensor. " f"Got {type(thresholds)}")
 
     if isinstance(thresholds, torch.Tensor) and len(thresholds.shape) != 0:
-        if not (input.size(0) == len(thresholds) and len(thresholds.shape) == 1):
+        if input.size(0) != len(thresholds) or len(thresholds.shape) != 1:
             raise AssertionError(f"thresholds must be a 1-d vector of shape ({input.size(0)},). Got {thresholds}")
         # TODO: I am not happy about this line, but no easy to do batch-wise operation
         thresholds = thresholds.to(input.device).to(input.dtype)
@@ -444,7 +423,7 @@ def solarize(
             raise AssertionError(f"The value of 'addition' is between -0.5 and 0.5. Got {additions}.")
 
         if isinstance(additions, torch.Tensor) and len(additions.shape) != 0:
-            if not (input.size(0) == len(additions) and len(additions.shape) == 1):
+            if input.size(0) != len(additions) or len(additions.shape) != 1:
                 raise AssertionError(f"additions must be a 1-d vector of shape ({input.size(0)},). Got {additions}")
             # TODO: I am not happy about this line, but no easy to do batch-wise operation
             additions = additions.to(input.device).to(input.dtype)

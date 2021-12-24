@@ -103,8 +103,7 @@ class AffineGenerator3D(RandomGeneratorBase):
         self.scale = scale
 
     def __repr__(self) -> str:
-        repr = f"degrees={self.degrees}, shears={self.shears}, translate={self.translate}, scale={self.scale}"
-        return repr
+        return f"degrees={self.degrees}, shears={self.shears}, translate={self.translate}, scale={self.scale}"
 
     def make_samplers(self, device: torch.device, dtype: torch.dtype) -> None:
         degrees = _tuple_range_reader(self.degrees, 3, device, dtype)
@@ -290,7 +289,9 @@ class CropGenerator3D(RandomGeneratorBase):
 
         if (x_diff < 0).any() or (y_diff < 0).any() or (z_diff < 0).any():
             raise ValueError(
-                f"input_size {(depth, height, width)} cannot be smaller than crop size {str(size)} in any dimension.")
+                f'input_size {(depth, height, width)} cannot be smaller than crop size {size} in any dimension.'
+            )
+
 
         if batch_size == 0:
             return dict(
@@ -324,8 +325,7 @@ class CropGenerator3D(RandomGeneratorBase):
                 size[:, 1] - 1,
                 size[:, 0] - 1,
             )
-        else:
-            if not (
+        elif not (
                 len(self.resize_to) == 3
                 and isinstance(self.resize_to[0], (int,))
                 and isinstance(self.resize_to[1], (int,))
@@ -334,7 +334,8 @@ class CropGenerator3D(RandomGeneratorBase):
                 and self.resize_to[1] > 0
                 and self.resize_to[2] > 0
             ):
-                raise AssertionError(f"`resize_to` must be a tuple of 3 positive integers. Got {self.resize_to}.")
+            raise AssertionError(f"`resize_to` must be a tuple of 3 positive integers. Got {self.resize_to}.")
+        else:
             crop_dst = torch.tensor(
                 [
                     [
@@ -392,8 +393,7 @@ class RotationGenerator3D(RandomGeneratorBase):
         self.degrees = degrees
 
     def __repr__(self) -> str:
-        repr = f"degrees={self.degrees}"
-        return repr
+        return f"degrees={self.degrees}"
 
     def make_samplers(self, device: torch.device, dtype: torch.dtype) -> None:
         degrees = _tuple_range_reader(self.degrees, 3, device, dtype)
@@ -461,14 +461,13 @@ class MotionBlurGenerator3D(RandomGeneratorBase):
         self.direction = direction
 
     def __repr__(self) -> str:
-        repr = f"kernel_size={self.kernel_size}, angle={self.angle}, direction={self.direction}"
-        return repr
+        return f"kernel_size={self.kernel_size}, angle={self.angle}, direction={self.direction}"
 
     def make_samplers(self, device: torch.device, dtype: torch.dtype) -> None:
         angle: torch.Tensor = _tuple_range_reader(self.angle, 3, device=device, dtype=dtype)
         direction = _range_bound(self.direction, 'direction', center=0.0, bounds=(-1, 1)).to(device=device, dtype=dtype)
         if isinstance(self.kernel_size, int):
-            if not (self.kernel_size >= 3 and self.kernel_size % 2 == 1):
+            if self.kernel_size < 3 or self.kernel_size % 2 != 1:
                 raise AssertionError(f"`kernel_size` must be odd and greater than 3. Got {self.kernel_size}.")
             self.ksize_sampler = Uniform(self.kernel_size // 2, self.kernel_size // 2, validate_args=False)
         elif isinstance(self.kernel_size, tuple):

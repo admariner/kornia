@@ -253,19 +253,19 @@ def pyrdown(input: torch.Tensor, border_type: str = 'reflect', align_corners: bo
         tensor([[[[ 3.7500,  5.2500],
                   [ 9.7500, 11.2500]]]])
     """
-    if not len(input.shape) == 4:
+    if len(input.shape) != 4:
         raise ValueError(f"Invalid input shape, we expect BxCxHxW. Got: {input.shape}")
     kernel: torch.Tensor = _get_pyramid_gaussian_kernel()
     _, _, height, width = input.shape
     # blur image
     x_blur: torch.Tensor = filter2d(input, kernel, border_type)
 
-    # TODO: use kornia.geometry.resize/rescale
-    # downsample.
-    out: torch.Tensor = F.interpolate(
-        x_blur, size=(height // 2, width // 2), mode='bilinear', align_corners=align_corners
+    return F.interpolate(
+        x_blur,
+        size=(height // 2, width // 2),
+        mode='bilinear',
+        align_corners=align_corners,
     )
-    return out
 
 
 def pyrup(input: torch.Tensor, border_type: str = 'reflect', align_corners: bool = False) -> torch.Tensor:
@@ -290,7 +290,7 @@ def pyrup(input: torch.Tensor, border_type: str = 'reflect', align_corners: bool
                   [1.5000, 1.6250, 1.8750, 2.0000],
                   [1.7500, 1.8750, 2.1250, 2.2500]]]])
     """
-    if not len(input.shape) == 4:
+    if len(input.shape) != 4:
         raise ValueError(f"Invalid input shape, we expect BxCxHxW. Got: {input.shape}")
     kernel: torch.Tensor = _get_pyramid_gaussian_kernel()
     # upsample tensor
@@ -300,9 +300,7 @@ def pyrup(input: torch.Tensor, border_type: str = 'reflect', align_corners: bool
         input, size=(height * 2, width * 2), mode='bilinear', align_corners=align_corners
     )
 
-    # blurs upsampled tensor
-    x_blur: torch.Tensor = filter2d(x_up, kernel, border_type)
-    return x_blur
+    return filter2d(x_up, kernel, border_type)
 
 
 def build_pyramid(
@@ -331,16 +329,14 @@ def build_pyramid(
     if not isinstance(input, torch.Tensor):
         raise TypeError(f"Input type is not a torch.Tensor. Got {type(input)}")
 
-    if not len(input.shape) == 4:
+    if len(input.shape) != 4:
         raise ValueError(f"Invalid input shape, we expect BxCxHxW. Got: {input.shape}")
 
     if not isinstance(max_level, int) or max_level < 0:
         raise ValueError(f"Invalid max_level, it must be a positive integer. Got: {max_level}")
 
     # create empty list and append the original image
-    pyramid: List[torch.Tensor] = []
-    pyramid.append(input)
-
+    pyramid: List[torch.Tensor] = [input]
     # iterate and downsample
 
     for _ in range(max_level - 1):

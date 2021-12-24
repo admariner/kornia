@@ -47,9 +47,7 @@ def bgr_to_rgb(image: torch.Tensor) -> torch.Tensor:
     if len(image.shape) < 3 or image.shape[-3] != 3:
         raise ValueError(f"Input size must have a shape of (*, 3, H, W).Got {image.shape}")
 
-    # flip image channels
-    out: torch.Tensor = image.flip(-3)
-    return out
+    return image.flip(-3)
 
 
 def rgb_to_rgba(image: torch.Tensor, alpha_val: Union[float, torch.Tensor]) -> torch.Tensor:
@@ -197,9 +195,11 @@ def rgb_to_linear_rgb(image: torch.Tensor) -> torch.Tensor:
     if len(image.shape) < 3 or image.shape[-3] != 3:
         raise ValueError(f"Input size must have a shape of (*, 3, H, W).Got {image.shape}")
 
-    lin_rgb: torch.Tensor = torch.where(image > 0.04045, torch.pow(((image + 0.055) / 1.055), 2.4), image / 12.92)
-
-    return lin_rgb
+    return torch.where(
+        image > 0.04045,
+        torch.pow(((image + 0.055) / 1.055), 2.4),
+        image / 12.92,
+    )
 
 
 def linear_rgb_to_rgb(image: torch.Tensor) -> torch.Tensor:
@@ -223,11 +223,11 @@ def linear_rgb_to_rgb(image: torch.Tensor) -> torch.Tensor:
         raise ValueError(f"Input size must have a shape of (*, 3, H, W).Got {image.shape}")
 
     threshold = 0.0031308
-    rgb: torch.Tensor = torch.where(
-        image > threshold, 1.055 * torch.pow(image.clamp(min=threshold), 1 / 2.4) - 0.055, 12.92 * image
+    return torch.where(
+        image > threshold,
+        1.055 * torch.pow(image.clamp(min=threshold), 1 / 2.4) - 0.055,
+        12.92 * image,
     )
-
-    return rgb
 
 
 class BgrToRgb(nn.Module):

@@ -181,14 +181,16 @@ class InputApplyInverse(ApplyInverseImpl):
             input, label = module(input, label=label, params=param.data)
             module.apply_inverse_func = temp
             module.return_label = temp2
+        elif param.data is not None:
+            raise AssertionError(f"Non-augmentaion operation {param.name} require empty parameters. Got {param}.")
         else:
-            if param.data is not None:
-                raise AssertionError(f"Non-augmentaion operation {param.name} require empty parameters. Got {param}.")
             # In case of return_transform = True
-            if isinstance(input, (tuple, list)):
-                input = (module(input[0]), input[1])
-            else:
-                input = module(input)
+            input = (
+                (module(input[0]), input[1])
+                if isinstance(input, (tuple, list))
+                else module(input)
+            )
+
         return input, label
 
     @classmethod
@@ -241,11 +243,7 @@ class MaskApplyInverse(ApplyInverseImpl):
                 to apply transformations.
             param: the corresponding parameters to the module.
         """
-        if param is not None:
-            _param = param.data
-        else:
-            _param = None  # type: ignore
-
+        _param = param.data if param is not None else None
         if isinstance(module, GeometricAugmentationBase2D):
             _param = cast(Dict[str, torch.Tensor], _param)
             input = module(input, params=_param, return_transform=False)
@@ -256,8 +254,6 @@ class MaskApplyInverse(ApplyInverseImpl):
             geo_param: List[ParamItem] = _get_geometric_only_param(module, _param)
             input = cls.make_input_only_sequential(module)(input, label=None, params=geo_param)
             module.apply_inverse_func = temp
-        else:
-            pass  # No need to update anything
         return input, label
 
     @classmethod

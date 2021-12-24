@@ -31,11 +31,14 @@ def _scale_index_to_scale(max_coords: torch.Tensor, sigmas: torch.Tensor, num_le
     # Reshape for grid shape
     B, N, _ = max_coords.shape
     scale_coords = max_coords[:, :, 0].contiguous().view(-1, 1, 1, 1)
-    # Replace the scale_x_y
-    out = torch.cat(
-        [sigmas[0, 0] * torch.pow(2.0, scale_coords / float(num_levels)).view(B, N, 1), max_coords[:, :, 1:]], dim=2
+    return torch.cat(
+        [
+            sigmas[0, 0]
+            * torch.pow(2.0, scale_coords / float(num_levels)).view(B, N, 1),
+            max_coords[:, :, 1:],
+        ],
+        dim=2,
     )
-    return out
 
 
 def _create_octave_mask(mask: torch.Tensor, octave_shape: List[int]) -> torch.Tensor:

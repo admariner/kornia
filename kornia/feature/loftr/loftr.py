@@ -9,9 +9,10 @@ from .utils.coarse_matching import CoarseMatching
 from .utils.fine_matching import FineMatching
 from .utils.position_encoding import PositionEncodingSine
 
-urls: Dict[str, str] = {}
-urls["outdoor"] = "http://cmp.felk.cvut.cz/~mishkdmy/models/loftr_outdoor.ckpt"
-urls["indoor"] = "http://cmp.felk.cvut.cz/~mishkdmy/models/loftr_indoor.ckpt"
+urls: Dict[str, str] = {
+    'outdoor': 'http://cmp.felk.cvut.cz/~mishkdmy/models/loftr_outdoor.ckpt',
+    'indoor': 'http://cmp.felk.cvut.cz/~mishkdmy/models/loftr_indoor.ckpt',
+}
 
 # Comments: the config below is the one corresponding to the pretrained models
 # Some do not change there anything, unless you want to retrain it.
@@ -166,10 +167,7 @@ class LoFTR(nn.Module):
                                        "mkpts1_f": 'keypoints1',
                                        "mconf": 'confidence',
                                        "b_ids": 'batch_indexes'}
-        out = {}
-        for k, v in rename_keys.items():
-            out[v] = data[k]
-        return out
+        return {v: data[k] for k, v in rename_keys.items()}
 
     def load_state_dict(self, state_dict, *args, **kwargs):
         for k in list(state_dict.keys()):

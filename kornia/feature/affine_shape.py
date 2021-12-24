@@ -16,8 +16,9 @@ from .laf import (
     scale_laf,
 )
 
-urls: Dict[str, str] = {}
-urls["affnet"] = "https://github.com/ducha-aiki/affnet/raw/master/pretrained/AffNet.pth"
+urls: Dict[str, str] = {
+    'affnet': 'https://github.com/ducha-aiki/affnet/raw/master/pretrained/AffNet.pth'
+}
 
 
 class PatchAffineShapeEstimator(nn.Module):
@@ -48,7 +49,7 @@ class PatchAffineShapeEstimator(nn.Module):
             torch.Tensor: ellipse_shape shape [Bx1x3]"""
         if not isinstance(patch, torch.Tensor):
             raise TypeError(f"Input type is not a torch.Tensor. Got {type(patch)}")
-        if not len(patch.shape) == 4:
+        if len(patch.shape) != 4:
             raise ValueError(f"Invalid input shape, we expect Bx1xHxW. Got: {patch.shape}")
         _, CH, W, H = patch.size()
         if (W != self.patch_size) or (H != self.patch_size) or (CH != 1):
@@ -223,5 +224,4 @@ class LAFAffNetShapeEstimator(nn.Module):
         new_laf = torch.cat([new_laf_no_center, laf[:, :, :, 2:3]], dim=3)
         scale_orig = get_laf_scale(laf)
         ellipse_scale = get_laf_scale(new_laf)
-        laf_out = scale_laf(make_upright(new_laf), scale_orig / ellipse_scale)
-        return laf_out
+        return scale_laf(make_upright(new_laf), scale_orig / ellipse_scale)

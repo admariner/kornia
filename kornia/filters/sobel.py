@@ -33,7 +33,7 @@ def spatial_gradient(input: torch.Tensor, mode: str = 'sobel', order: int = 1, n
     if not isinstance(input, torch.Tensor):
         raise TypeError(f"Input type is not a torch.Tensor. Got {type(input)}")
 
-    if not len(input.shape) == 4:
+    if len(input.shape) != 4:
         raise ValueError(f"Invalid input shape, we expect BxCxHxW. Got: {input.shape}")
     # allocate kernel
     kernel: torch.Tensor = get_spatial_gradient_kernel2d(mode, order)
@@ -78,7 +78,7 @@ def spatial_gradient3d(input: torch.Tensor, mode: str = 'diff', order: int = 1) 
     if not isinstance(input, torch.Tensor):
         raise TypeError(f"Input type is not a torch.Tensor. Got {type(input)}")
 
-    if not len(input.shape) == 5:
+    if len(input.shape) != 5:
         raise ValueError(f"Invalid input shape, we expect BxCxDxHxW. Got: {input.shape}")
     b, c, d, h, w = input.shape
     dev = input.device
@@ -146,7 +146,7 @@ def sobel(input: torch.Tensor, normalized: bool = True, eps: float = 1e-6) -> to
     if not isinstance(input, torch.Tensor):
         raise TypeError(f"Input type is not a torch.Tensor. Got {type(input)}")
 
-    if not len(input.shape) == 4:
+    if len(input.shape) != 4:
         raise ValueError(f"Invalid input shape, we expect BxCxHxW. Got: {input.shape}")
 
     # comput the x/y gradients
@@ -156,10 +156,7 @@ def sobel(input: torch.Tensor, normalized: bool = True, eps: float = 1e-6) -> to
     gx: torch.Tensor = edges[:, :, 0]
     gy: torch.Tensor = edges[:, :, 1]
 
-    # compute gradient maginitude
-    magnitude: torch.Tensor = torch.sqrt(gx * gx + gy * gy + eps)
-
-    return magnitude
+    return torch.sqrt(gx * gx + gy * gy + eps)
 
 
 class SpatialGradient(nn.Module):

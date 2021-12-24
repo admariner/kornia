@@ -51,9 +51,8 @@ def compute_max_candidates(p_m0, p_m1):
     """
     h0s, w0s = p_m0.sum(1).max(-1)[0], p_m0.sum(-1).max(-1)[0]
     h1s, w1s = p_m1.sum(1).max(-1)[0], p_m1.sum(-1).max(-1)[0]
-    max_cand = torch.sum(
+    return torch.sum(
         torch.min(torch.stack([h0s * w0s, h1s * w1s], -1), -1)[0])
-    return max_cand
 
 
 class CoarseMatching(nn.Module):

@@ -5,7 +5,7 @@ import torch
 
 def _common_param_check(batch_size: int, same_on_batch: Optional[bool] = None):
     """Valid batch_size and same_on_batch params."""
-    if not (type(batch_size) is int and batch_size >= 0):
+    if type(batch_size) is not int or batch_size < 0:
         raise AssertionError(f"`batch_size` shall be a positive integer. Got {batch_size}.")
     if same_on_batch is not None and type(same_on_batch) is not bool:
         raise AssertionError(f"`same_on_batch` shall be boolean. Got {same_on_batch}.")
@@ -51,16 +51,15 @@ def _joint_range_check(ranged_factor: torch.Tensor, name: str, bounds: Optional[
     """Check if bounds[0] <= ranged_factor[0] <= ranged_factor[1] <= bounds[1]"""
     if bounds is None:
         bounds = (float('-inf'), float('inf'))
-    if ranged_factor.dim() == 1 and len(ranged_factor) == 2:
-        if not bounds[0] <= ranged_factor[0] or not bounds[1] >= ranged_factor[1]:
-            raise ValueError(f"{name} out of bounds. Expected inside {bounds}, got {ranged_factor}.")
-
-        if not bounds[0] <= ranged_factor[0] <= ranged_factor[1] <= bounds[1]:
-            raise ValueError(f"{name}[0] should be smaller than {name}[1] got {ranged_factor}")
-    else:
+    if ranged_factor.dim() != 1 or len(ranged_factor) != 2:
         raise TypeError(
             f"{name} should be a tensor with length 2 whose values between {bounds}. " f"Got {ranged_factor}."
         )
+    if not bounds[0] <= ranged_factor[0] or not bounds[1] >= ranged_factor[1]:
+        raise ValueError(f"{name} out of bounds. Expected inside {bounds}, got {ranged_factor}.")
+
+    if not bounds[0] <= ranged_factor[0] <= ranged_factor[1] <= bounds[1]:
+        raise ValueError(f"{name}[0] should be smaller than {name}[1] got {ranged_factor}")
 
 
 def _singular_range_check(
@@ -82,15 +81,14 @@ def _singular_range_check(
         return
     if bounds is None:
         bounds = (float('-inf'), float('inf'))
-    if ranged_factor.dim() == 1 and len(ranged_factor) == dim_size:
-        for f in ranged_factor:
-            if not bounds[0] <= f <= bounds[1]:
-                raise ValueError(f"{name} out of bounds. Expected inside {bounds}, got {ranged_factor}.")
-    else:
+    if ranged_factor.dim() != 1 or len(ranged_factor) != dim_size:
         raise TypeError(
             f"{name} should be a float number or a tuple with length {dim_size} whose values between {bounds}."
             f"Got {ranged_factor}"
         )
+    for f in ranged_factor:
+        if not bounds[0] <= f <= bounds[1]:
+            raise ValueError(f"{name} out of bounds. Expected inside {bounds}, got {ranged_factor}.")
 
 
 def _tuple_range_reader(

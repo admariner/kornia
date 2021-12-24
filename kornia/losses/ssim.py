@@ -51,8 +51,6 @@ def ssim_loss(
         loss = torch.mean(loss)
     elif reduction == "sum":
         loss = torch.sum(loss)
-    elif reduction == "none":
-        pass
     return loss
 
 

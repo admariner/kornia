@@ -51,10 +51,8 @@ class _BasicAugmentationBase(nn.Module):
         self.same_on_batch = same_on_batch
         self.keepdim = keepdim
         self._params: Dict[str, torch.Tensor] = {}
-        if p != 0.0 or p != 1.0:
-            self._p_gen = Bernoulli(self.p)
-        if p_batch != 0.0 or p_batch != 1.0:
-            self._p_batch_gen = Bernoulli(self.p_batch)
+        self._p_gen = Bernoulli(self.p)
+        self._p_batch_gen = Bernoulli(self.p_batch)
         self._param_generator: Optional[RandomGeneratorBase] = None
         self.flags: Dict[str, Any] = {}
         self.set_rng_device_and_dtype(torch.device('cpu'), torch.get_default_dtype())
@@ -62,12 +60,9 @@ class _BasicAugmentationBase(nn.Module):
     def __repr__(self) -> str:
         txt = f"p={self.p}, p_batch={self.p_batch}, same_on_batch={self.same_on_batch}"
         if isinstance(self._param_generator, RandomGeneratorBase):
-            txt = f"{str(self._param_generator)}, {txt}"
+            txt = f'{self._param_generator}, {txt}'
         for k, v in self.flags.items():
-            if isinstance(v, Enum):
-                txt += f", {k}={v.name.lower()}"
-            else:
-                txt += f", {k}={v}"
+            txt += f", {k}={v.name.lower()}" if isinstance(v, Enum) else f", {k}={v}"
         return f"{self.__class__.__name__}({txt})"
 
     def __unpack_input__(self, input: torch.Tensor) -> torch.Tensor:
@@ -290,20 +285,21 @@ class AugmentationBase2D(_AugmentationBase):
     """
 
     def __check_batching__(self, input: TensorWithTransformMat):
-        if isinstance(input, tuple):
-            inp, mat = input
-            if len(inp.shape) == 4:
-                if len(mat.shape) != 3:
-                    raise AssertionError('Input tensor is in batch mode ' 'but transformation matrix is not')
-                if mat.shape[0] != inp.shape[0]:
-                    raise AssertionError(
-                        f"In batch dimension, input has {inp.shape[0]} but transformation matrix has {mat.shape[0]}"
-                    )
-            elif len(inp.shape) in (2, 3):
-                if len(mat.shape) != 2:
-                    raise AssertionError("Input tensor is in non-batch mode but transformation matrix is not")
-            else:
-                raise ValueError(f'Unrecognized output shape. Expected 2, 3, or 4, got {len(inp.shape)}')
+        if not isinstance(input, tuple):
+            return
+        inp, mat = input
+        if len(inp.shape) == 4:
+            if len(mat.shape) != 3:
+                raise AssertionError('Input tensor is in batch mode ' 'but transformation matrix is not')
+            if mat.shape[0] != inp.shape[0]:
+                raise AssertionError(
+                    f"In batch dimension, input has {inp.shape[0]} but transformation matrix has {mat.shape[0]}"
+                )
+        elif len(inp.shape) in (2, 3):
+            if len(mat.shape) != 2:
+                raise AssertionError("Input tensor is in non-batch mode but transformation matrix is not")
+        else:
+            raise ValueError(f'Unrecognized output shape. Expected 2, 3, or 4, got {len(inp.shape)}')
 
     def transform_tensor(self, input: torch.Tensor) -> torch.Tensor:
         """Convert any incoming (H, W), (C, H, W) and (B, C, H, W) into (B, C, H, W)."""
@@ -441,20 +437,21 @@ class AugmentationBase3D(_AugmentationBase):
     """
 
     def __check_batching__(self, input: TensorWithTransformMat):
-        if isinstance(input, tuple):
-            inp, mat = input
-            if len(inp.shape) == 5:
-                if len(mat.shape) != 3:
-                    raise AssertionError('Input tensor is in batch mode ' 'but transformation matrix is not')
-                if mat.shape[0] != inp.shape[0]:
-                    raise AssertionError(
-                        f"In batch dimension, input has {inp.shape[0]} but transformation matrix has {mat.shape[0]}"
-                    )
-            elif len(inp.shape) in (3, 4):
-                if len(mat.shape) != 2:
-                    raise AssertionError("Input tensor is in non-batch mode but transformation matrix is not")
-            else:
-                raise ValueError(f'Unrecognized output shape. Expected 3, 4 or 5, got {len(inp.shape)}')
+        if not isinstance(input, tuple):
+            return
+        inp, mat = input
+        if len(inp.shape) == 5:
+            if len(mat.shape) != 3:
+                raise AssertionError('Input tensor is in batch mode ' 'but transformation matrix is not')
+            if mat.shape[0] != inp.shape[0]:
+                raise AssertionError(
+                    f"In batch dimension, input has {inp.shape[0]} but transformation matrix has {mat.shape[0]}"
+                )
+        elif len(inp.shape) in (3, 4):
+            if len(mat.shape) != 2:
+                raise AssertionError("Input tensor is in non-batch mode but transformation matrix is not")
+        else:
+            raise ValueError(f'Unrecognized output shape. Expected 3, 4 or 5, got {len(inp.shape)}')
 
     def transform_tensor(self, input: torch.Tensor) -> torch.Tensor:
         """Convert any incoming (D, H, W), (C, D, H, W) and (B, C, D, H, W) into (B, C, D, H, W)."""
@@ -485,20 +482,21 @@ class MixAugmentationBase(_BasicAugmentationBase):
         super().__init__(p, p_batch=p_batch, same_on_batch=same_on_batch, keepdim=keepdim)
 
     def __check_batching__(self, input: TensorWithTransformMat):
-        if isinstance(input, tuple):
-            inp, mat = input
-            if len(inp.shape) == 4:
-                if len(mat.shape) != 3:
-                    raise AssertionError('Input tensor is in batch mode ' 'but transformation matrix is not')
-                if mat.shape[0] != inp.shape[0]:
-                    raise AssertionError(
-                        f"In batch dimension, input has {inp.shape[0]} but transformation matrix has {mat.shape[0]}"
-                    )
-            elif len(inp.shape) in (2, 3):
-                if len(mat.shape) != 2:
-                    raise AssertionError("Input tensor is in non-batch mode but transformation matrix is not")
-            else:
-                raise ValueError(f'Unrecognized output shape. Expected 2, 3, or 4, got {len(inp.shape)}')
+        if not isinstance(input, tuple):
+            return
+        inp, mat = input
+        if len(inp.shape) == 4:
+            if len(mat.shape) != 3:
+                raise AssertionError('Input tensor is in batch mode ' 'but transformation matrix is not')
+            if mat.shape[0] != inp.shape[0]:
+                raise AssertionError(
+                    f"In batch dimension, input has {inp.shape[0]} but transformation matrix has {mat.shape[0]}"
+                )
+        elif len(inp.shape) in (2, 3):
+            if len(mat.shape) != 2:
+                raise AssertionError("Input tensor is in non-batch mode but transformation matrix is not")
+        else:
+            raise ValueError(f'Unrecognized output shape. Expected 2, 3, or 4, got {len(inp.shape)}')
 
     def __unpack_input__(  # type: ignore
         self, input: TensorWithTransformMat
@@ -549,10 +547,7 @@ class MixAugmentationBase(_BasicAugmentationBase):
         in_tensor = self.transform_tensor(in_tensor)
         # If label is not provided, it would output the indices instead.
         if label is None:
-            if isinstance(input, (tuple, list)):
-                device = input[0].device
-            else:
-                device = input.device
+            device = input[0].device if isinstance(input, (tuple, list)) else input.device
             label = torch.arange(0, in_tensor.size(0), device=device, dtype=torch.long)
         if params is None:
             batch_shape = in_tensor.shape

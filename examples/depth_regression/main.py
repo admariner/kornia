@@ -83,8 +83,7 @@ class InvDepth(nn.Module):
     def _init_weights(self, height, width):
         r1 = self._min_range
         r2 = self._min_range + (self._max_range - self._min_range) * 0.1
-        w_init = (r1 - r2) * torch.rand(1, 1, height, width) + r2
-        return w_init
+        return (r1 - r2) * torch.rand(1, 1, height, width) + r2
 
     def forward(self):
         return self.w.clamp(min=self._min_range, max=self._max_range)

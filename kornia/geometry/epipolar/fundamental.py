@@ -85,7 +85,7 @@ def find_fundamental(points1: torch.Tensor, points2: torch.Tensor, weights: torc
     """
     if points1.shape != points2.shape:
         raise AssertionError(points1.shape, points2.shape)
-    if not (len(weights.shape) == 2 and weights.shape[1] == points1.shape[1]):
+    if len(weights.shape) != 2 or weights.shape[1] != points1.shape[1]:
         raise AssertionError(weights.shape)
 
     points1_norm, transform1 = normalize_points(points1)
@@ -135,9 +135,9 @@ def compute_correspond_epilines(points: torch.Tensor, F_mat: torch.Tensor) -> to
         :math:`ax + by + c = 0` and encoding the vectors as :math:`(a, b, c)`.
 
     """
-    if not (len(points.shape) == 3 and points.shape[2] == 2):
+    if len(points.shape) != 3 or points.shape[2] != 2:
         raise AssertionError(points.shape)
-    if not (len(F_mat.shape) == 3 and F_mat.shape[-2:] == (3, 3)):
+    if len(F_mat.shape) != 3 or F_mat.shape[-2:] != (3, 3):
         raise AssertionError(F_mat.shape)
 
     points_h: torch.Tensor = convert_points_to_homogeneous(points)
@@ -167,11 +167,11 @@ def fundamental_from_essential(E_mat: torch.Tensor, K1: torch.Tensor, K2: torch.
         The fundamental matrix with shape :math:`(*, 3, 3)`.
 
     """
-    if not (len(E_mat.shape) >= 2 and E_mat.shape[-2:] == (3, 3)):
+    if len(E_mat.shape) < 2 or E_mat.shape[-2:] != (3, 3):
         raise AssertionError(E_mat.shape)
-    if not (len(K1.shape) >= 2 and K1.shape[-2:] == (3, 3)):
+    if len(K1.shape) < 2 or K1.shape[-2:] != (3, 3):
         raise AssertionError(K1.shape)
-    if not (len(K2.shape) >= 2 and K2.shape[-2:] == (3, 3)):
+    if len(K2.shape) < 2 or K2.shape[-2:] != (3, 3):
         raise AssertionError(K2.shape)
     if not len(E_mat.shape[:-2]) == len(K1.shape[:-2]) == len(K2.shape[:-2]):
         raise AssertionError

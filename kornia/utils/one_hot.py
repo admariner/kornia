@@ -38,7 +38,7 @@ def one_hot(
     if not isinstance(labels, torch.Tensor):
         raise TypeError(f"Input labels type is not a torch.Tensor. Got {type(labels)}")
 
-    if not labels.dtype == torch.int64:
+    if labels.dtype != torch.int64:
         raise ValueError(f"labels must be of the same dtype torch.int64. Got: {labels.dtype}")
 
     if num_classes < 1:

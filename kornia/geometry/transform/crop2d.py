@@ -267,8 +267,11 @@ def crop_by_transform_mat(
     # simulate broadcasting
     dst_trans_src = torch.as_tensor(transform.expand(tensor.shape[0], -1, -1), device=tensor.device, dtype=tensor.dtype)
 
-    patches: torch.Tensor = warp_affine(
-        tensor, dst_trans_src[:, :2, :], out_size, mode=mode, padding_mode=padding_mode, align_corners=align_corners
+    return warp_affine(
+        tensor,
+        dst_trans_src[:, :2, :],
+        out_size,
+        mode=mode,
+        padding_mode=padding_mode,
+        align_corners=align_corners,
     )
-
-    return patches

@@ -33,7 +33,7 @@ def oneway_transfer_error(
     if not isinstance(H, torch.Tensor):
         raise TypeError(f"H type is not a torch.Tensor. Got {type(H)}")
 
-    if (len(H.shape) != 3) or not H.shape[-2:] == (3, 3):
+    if len(H.shape) != 3 or H.shape[-2:] != (3, 3):
         raise ValueError(f"H must be a (*, 3, 3) tensor. Got {H.shape}")
 
     if pts1.size(-1) == 3:
@@ -72,7 +72,7 @@ def symmetric_transfer_error(
     if not isinstance(H, torch.Tensor):
         raise TypeError(f"H type is not a torch.Tensor. Got {type(H)}")
 
-    if (len(H.shape) != 3) or not H.shape[-2:] == (3, 3):
+    if len(H.shape) != 3 or H.shape[-2:] != (3, 3):
         raise ValueError(f"H must be a (*, 3, 3) tensor. Got {H.shape}")
 
     if pts1.size(-1) == 3:
@@ -112,7 +112,7 @@ def find_homography_dlt(
     """
     if points1.shape != points2.shape:
         raise AssertionError(points1.shape)
-    if not (len(points1.shape) >= 1 and points1.shape[-1] == 2):
+    if len(points1.shape) < 1 or points1.shape[-1] != 2:
         raise AssertionError(points1.shape)
     if points1.shape[1] < 4:
         raise AssertionError(points1.shape)
@@ -137,7 +137,7 @@ def find_homography_dlt(
         A = A.transpose(-2, -1) @ A
     else:
         # We should use provided weights
-        if not (len(weights.shape) == 2 and weights.shape == points1.shape[:2]):
+        if len(weights.shape) != 2 or weights.shape != points1.shape[:2]:
             raise AssertionError(weights.shape)
         w_diag = torch.diag_embed(weights.unsqueeze(dim=-1).repeat(1, 1, 2).reshape(weights.shape[0], -1))
         A = A.transpose(-2, -1) @ w_diag @ A
@@ -150,8 +150,7 @@ def find_homography_dlt(
 
     H = V[..., -1].view(-1, 3, 3)
     H = transform2.inverse() @ (H @ transform1)
-    H_norm = H / (H[..., -1:, -1:] + eps)
-    return H_norm
+    return H / (H[..., -1:, -1:] + eps)
 
 
 def find_homography_dlt_iterated(
@@ -196,7 +195,7 @@ def sample_is_valid_for_homography(points1: torch.Tensor, points2: torch.Tensor)
     """
     if points1.shape != points2.shape:
         raise AssertionError(points1.shape)
-    if not (len(points1.shape) >= 1 and points1.shape[-1] == 2):
+    if len(points1.shape) < 1 or points1.shape[-1] != 2:
         raise AssertionError(points1.shape)
     if points1.shape[1] != 4:
         raise AssertionError(points1.shape)
@@ -214,5 +213,4 @@ def sample_is_valid_for_homography(points1: torch.Tensor, points2: torch.Tensor)
                              src_perm[..., 2:3, :]) @ src_perm[..., 0:1, :].permute(0, 1, 3, 2)).sign()
     right_sign = (torch.cross(dst_perm[..., 1:2, :],
                               dst_perm[..., 2:3, :]) @ dst_perm[..., 0:1, :].permute(0, 1, 3, 2)).sign()
-    sample_is_valid = (left_sign == right_sign).view(-1, 4).min(dim=1)[0]
-    return sample_is_valid
+    return (left_sign == right_sign).view(-1, 4).min(dim=1)[0]

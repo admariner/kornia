@@ -28,9 +28,8 @@ def match_nn(
 
     if dm is None:
         dm = torch.cdist(desc1, desc2)
-    else:
-        if not ((dm.size(0) == desc1.size(0)) and (dm.size(1) == desc2.size(0))):
-            raise AssertionError
+    elif dm.size(0) != desc1.size(0) or dm.size(1) != desc2.size(0):
+        raise AssertionError
 
     match_dists, idxs_in_2 = torch.min(dm, dim=1)
     idxs_in1: torch.Tensor = torch.arange(0, idxs_in_2.size(0), device=idxs_in_2.device)
@@ -63,9 +62,8 @@ def match_mnn(
 
     if dm is None:
         dm = torch.cdist(desc1, desc2)
-    else:
-        if not ((dm.size(0) == desc1.size(0)) and (dm.size(1) == desc2.size(0))):
-            raise AssertionError
+    elif dm.size(0) != desc1.size(0) or dm.size(1) != desc2.size(0):
+        raise AssertionError
 
     ms = min(dm.size(0), dm.size(1))
     match_dists, idxs_in_2 = torch.min(dm, dim=1)
@@ -113,9 +111,8 @@ def match_snn(
 
     if dm is None:
         dm = torch.cdist(desc1, desc2)
-    else:
-        if not ((dm.size(0) == desc1.size(0)) and (dm.size(1) == desc2.size(0))):
-            raise AssertionError
+    elif dm.size(0) != desc1.size(0) or dm.size(1) != desc2.size(0):
+        raise AssertionError
 
     vals, idxs_in_2 = torch.topk(dm, 2, dim=1, largest=False)
     ratio = vals[:, 0] / vals[:, 1]
@@ -159,9 +156,8 @@ def match_smnn(
 
     if dm is None:
         dm = torch.cdist(desc1, desc2)
-    else:
-        if not ((dm.size(0) == desc1.size(0)) and (dm.size(1) == desc2.size(0))):
-            raise AssertionError
+    elif dm.size(0) != desc1.size(0) or dm.size(1) != desc2.size(0):
+        raise AssertionError
 
     dists1, idx1 = match_snn(desc1, desc2, th, dm)
     dists2, idx2 = match_snn(desc2, desc1, th, dm.t())

@@ -122,8 +122,7 @@ def laplacian_1d(window_size) -> torch.Tensor:
 
     filter_1d = torch.ones(window_size)
     filter_1d[window_size // 2] = 1 - window_size
-    laplacian_1d: torch.Tensor = filter_1d
-    return laplacian_1d
+    return filter_1d
 
 
 def get_box_kernel2d(kernel_size: Tuple[int, int]) -> torch.Tensor:
@@ -357,8 +356,7 @@ def get_gaussian_kernel1d(kernel_size: int, sigma: float, force_even: bool = Fal
     """
     if not isinstance(kernel_size, int) or ((kernel_size % 2 == 0) and not force_even) or (kernel_size <= 0):
         raise TypeError("kernel_size must be an odd positive integer. " "Got {}".format(kernel_size))
-    window_1d: torch.Tensor = gaussian(kernel_size, sigma)
-    return window_1d
+    return gaussian(kernel_size, sigma)
 
 
 def get_gaussian_discrete_kernel1d(kernel_size: int, sigma: float, force_even: bool = False) -> torch.Tensor:
@@ -387,8 +385,7 @@ def get_gaussian_discrete_kernel1d(kernel_size: int, sigma: float, force_even: b
     """
     if not isinstance(kernel_size, int) or ((kernel_size % 2 == 0) and not force_even) or (kernel_size <= 0):
         raise TypeError("kernel_size must be an odd positive integer. " "Got {}".format(kernel_size))
-    window_1d = gaussian_discrete(kernel_size, sigma)
-    return window_1d
+    return gaussian_discrete(kernel_size, sigma)
 
 
 def get_gaussian_erf_kernel1d(kernel_size: int, sigma: float, force_even: bool = False) -> torch.Tensor:
@@ -417,8 +414,7 @@ def get_gaussian_erf_kernel1d(kernel_size: int, sigma: float, force_even: bool =
     """
     if not isinstance(kernel_size, int) or ((kernel_size % 2 == 0) and not force_even) or (kernel_size <= 0):
         raise TypeError("kernel_size must be an odd positive integer. " "Got {}".format(kernel_size))
-    window_1d = gaussian_discrete_erf(kernel_size, sigma)
-    return window_1d
+    return gaussian_discrete_erf(kernel_size, sigma)
 
 
 def get_gaussian_kernel2d(
@@ -457,8 +453,7 @@ def get_gaussian_kernel2d(
     sigma_x, sigma_y = sigma
     kernel_x: torch.Tensor = get_gaussian_kernel1d(ksize_x, sigma_x, force_even)
     kernel_y: torch.Tensor = get_gaussian_kernel1d(ksize_y, sigma_y, force_even)
-    kernel_2d: torch.Tensor = torch.matmul(kernel_x.unsqueeze(-1), kernel_y.unsqueeze(-1).t())
-    return kernel_2d
+    return torch.matmul(kernel_x.unsqueeze(-1), kernel_y.unsqueeze(-1).t())
 
 
 def get_laplacian_kernel1d(kernel_size: int) -> torch.Tensor:
@@ -482,8 +477,7 @@ def get_laplacian_kernel1d(kernel_size: int) -> torch.Tensor:
     """
     if not isinstance(kernel_size, int) or kernel_size % 2 == 0 or kernel_size <= 0:
         raise TypeError(f"ksize must be an odd positive integer. Got {kernel_size}")
-    window_1d: torch.Tensor = laplacian_1d(kernel_size)
-    return window_1d
+    return laplacian_1d(kernel_size)
 
 
 def get_laplacian_kernel2d(kernel_size: int) -> torch.Tensor:
@@ -516,8 +510,7 @@ def get_laplacian_kernel2d(kernel_size: int) -> torch.Tensor:
     kernel = torch.ones((kernel_size, kernel_size))
     mid = kernel_size // 2
     kernel[mid, mid] = 1 - kernel_size ** 2
-    kernel_2d: torch.Tensor = kernel
-    return kernel_2d
+    return kernel
 
 
 def get_pascal_kernel_2d(kernel_size: int, norm: bool = True) -> torch.Tensor:

@@ -174,10 +174,11 @@ class TestSequential:
             keepdim=keepdim,
             random_apply=random_apply,
         )
-        c = 0
-        for a in aug.get_forward_sequence():
-            if isinstance(a, (MixAugmentationBase,)):
-                c += 1
+        c = sum(
+            isinstance(a, (MixAugmentationBase,))
+            for a in aug.get_forward_sequence()
+        )
+
         assert c < 2
         aug.same_on_batch = True
         aug.return_transform = True

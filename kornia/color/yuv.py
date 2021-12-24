@@ -35,9 +35,7 @@ def rgb_to_yuv(image: torch.Tensor) -> torch.Tensor:
     u: torch.Tensor = -0.147 * r - 0.289 * g + 0.436 * b
     v: torch.Tensor = 0.615 * r - 0.515 * g - 0.100 * b
 
-    out: torch.Tensor = torch.stack([y, u, v], -3)
-
-    return out
+    return torch.stack([y, u, v], -3)
 
 
 def rgb_to_yuv420(image: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -131,9 +129,7 @@ def yuv_to_rgb(image: torch.Tensor) -> torch.Tensor:
     g: torch.Tensor = y + -0.396 * u - 0.581 * v
     b: torch.Tensor = y + 2.029 * u  # coefficient for b is 0
 
-    out: torch.Tensor = torch.stack([r, g, b], -3)
-
-    return out
+    return torch.stack([r, g, b], -3)
 
 
 def yuv420_to_rgb(imagey: torch.Tensor, imageuv: torch.Tensor) -> torch.Tensor:
@@ -171,8 +167,11 @@ def yuv420_to_rgb(imagey: torch.Tensor, imageuv: torch.Tensor) -> torch.Tensor:
     if len(imagey.shape) < 2 or imagey.shape[-2] % 2 == 1 or imagey.shape[-1] % 2 == 1:
         raise ValueError(f"Input H&W must be evenly disible by 2. Got {imagey.shape}")
 
-    if (len(imageuv.shape) < 2 or len(imagey.shape) < 2 or imagey.shape[-2] / imageuv.shape[-2] != 2
-            or imagey.shape[-1] / imageuv.shape[-1] != 2):
+    if (
+        len(imageuv.shape) < 2
+        or imagey.shape[-2] / imageuv.shape[-2] != 2
+        or imagey.shape[-1] / imageuv.shape[-1] != 2
+    ):
         raise ValueError(f"Input imageuv H&W must be half the size of the luma plane. "
                          f"Got {imagey.shape} and {imageuv.shape}")
 
@@ -217,7 +216,7 @@ def yuv422_to_rgb(imagey: torch.Tensor, imageuv: torch.Tensor) -> torch.Tensor:
     if len(imagey.shape) < 2 or imagey.shape[-2] % 2 == 1 or imagey.shape[-1] % 2 == 1:
         raise ValueError(f"Input H&W must be evenly disible by 2. Got {imagey.shape}")
 
-    if len(imageuv.shape) < 2 or len(imagey.shape) < 2 or imagey.shape[-1] / imageuv.shape[-1] != 2:
+    if len(imageuv.shape) < 2 or imagey.shape[-1] / imageuv.shape[-1] != 2:
         raise ValueError(f"Input imageuv W must be half the size of the luma plane. "
                          f"Got {imagey.shape} and {imageuv.shape}")
 

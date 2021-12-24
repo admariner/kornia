@@ -82,8 +82,7 @@ def _boxes3d_to_polygons3d(
     back_vertices = front_vertices.clone()
     back_vertices[..., 2] += depth.unsqueeze(-1) - 1
 
-    polygons3d = torch.cat([front_vertices, back_vertices], dim=-2)
-    return polygons3d
+    return torch.cat([front_vertices, back_vertices], dim=-2)
 
 
 @torch.jit.script

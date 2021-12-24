@@ -138,19 +138,13 @@ class VideoSequential(ImageSequential):
         if self.data_format == "BCTHW":
             # Convert (B, C, T, H, W) to (B, T, C, H, W)
             input = input.transpose(1, 2)
-        if self.data_format == "BTCHW":
-            pass
-
         if label is not None:
             if label.shape == input.shape[:2]:
                 # if label is provided as (B, T)
                 label = label.view(-1)
             elif label.shape == input.shape[:1]:
                 label = label[..., None].repeat(1, frame_num).view(-1)
-            elif label.shape == torch.Size([input.shape[0] * input.shape[1]]):
-                # Skip the conversion if label is provided as (B * T,)
-                pass
-            else:
+            elif label.shape != torch.Size([input.shape[0] * input.shape[1]]):
                 raise NotImplementedError(f"Invalid label shape of {label.shape}.")
         input = input.reshape(-1, *input.shape[2:])
         return input, label
@@ -161,9 +155,6 @@ class VideoSequential(ImageSequential):
         input = input.view(-1, frame_num, *input.shape[1:])
         if self.data_format == "BCTHW":
             input = input.transpose(1, 2)
-        if self.data_format == "BTCHW":
-            pass
-
         if label is not None:
             label = label.view(input.size(0), frame_num, -1)
         return input, label
@@ -249,16 +240,15 @@ class VideoSequential(ImageSequential):
             if self.apply_inverse_func in (InputApplyInverse, MaskApplyInverse):
                 _out, label = self._input_shape_convert_back(output[0], label, frame_num)
                 output = (_out, output[1])
+            elif label is not None:
+                raise ValueError(f"Invalid label value. Got {label}")
             else:
-                if label is not None:
-                    raise ValueError(f"Invalid label value. Got {label}")
                 output = output[0].view(batch_size, -1, *output[0].shape[1:])
+        elif self.apply_inverse_func in (InputApplyInverse, MaskApplyInverse):
+            output, label = self._input_shape_convert_back(output, label, frame_num)
+        elif label is not None:
+            raise ValueError(f"Invalid label value. Got {label}")
         else:
-            if self.apply_inverse_func in (InputApplyInverse, MaskApplyInverse):
-                output, label = self._input_shape_convert_back(output, label, frame_num)
-            else:
-                if label is not None:
-                    raise ValueError(f"Invalid label value. Got {label}")
-                output = output.view(batch_size, -1, *output.shape[1:])
+            output = output.view(batch_size, -1, *output.shape[1:])
 
         return self.__packup_output__(output, label)

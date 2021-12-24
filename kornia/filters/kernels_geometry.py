@@ -161,7 +161,7 @@ def get_motion_kernel3d(
     if angle.dim() == 1:
         angle = angle.unsqueeze(0)
 
-    if not (len(angle.shape) == 2 and angle.size(1) == 3):
+    if len(angle.shape) != 2 or angle.size(1) != 3:
         raise AssertionError(f"angle must be (B, 3). Got {angle}.")
 
     if not isinstance(direction, torch.Tensor):

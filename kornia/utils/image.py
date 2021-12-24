@@ -79,8 +79,7 @@ def image_list_to_tensor(images: List["np.ndarray"]) -> torch.Tensor:
     list_of_tensors: List[torch.Tensor] = []
     for image in images:
         list_of_tensors.append(image_to_tensor(image))
-    tensor: torch.Tensor = torch.stack(list_of_tensors)
-    return tensor
+    return torch.stack(list_of_tensors)
 
 
 def _to_bchw(tensor: torch.Tensor) -> torch.Tensor:
@@ -174,11 +173,7 @@ def tensor_to_image(tensor: torch.Tensor, keepdim: bool = False) -> "np.ndarray"
         pass
     elif len(input_shape) == 3:
         # (C, H, W) -> (H, W, C)
-        if input_shape[0] == 1:
-            # Grayscale for proper plt.imshow needs to be (H,W)
-            image = image.squeeze()
-        else:
-            image = image.transpose(1, 2, 0)
+        image = image.squeeze() if input_shape[0] == 1 else image.transpose(1, 2, 0)
     elif len(input_shape) == 4:
         # (B, C, H, W) -> (B, H, W, C)
         image = image.transpose(0, 2, 3, 1)

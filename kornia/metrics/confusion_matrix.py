@@ -39,11 +39,11 @@ def confusion_matrix(
         raise TypeError(
             "Input target type is not a torch.Tensor with " "torch.int64 dtype. Got {}".format(type(target))
         )
-    if not input.shape == target.shape:
+    if input.shape != target.shape:
         raise ValueError(
             "Inputs input and target must have the same shape. " "Got: {} and {}".format(input.shape, target.shape)
         )
-    if not input.device == target.device:
+    if input.device != target.device:
         raise ValueError("Inputs must be in the same device. " "Got: {} - {}".format(input.device, target.device))
 
     if not isinstance(num_classes, int) or num_classes < 2:

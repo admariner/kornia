@@ -237,19 +237,19 @@ class LocalFeatureMatcher(nn.Module):
         """
         num_image_pairs: int = data['image0'].shape[0]
 
-        if ('lafs0' not in data.keys()) or ('descriptors0' not in data.keys()):
+        if 'lafs0' in data and 'descriptors0' in data:
+            lafs0, descs0 = data['lafs0'], data['descriptors0']
+
+        else:
             # One can supply pre-extracted local features
             feats_dict0: Dict[str, torch.Tensor] = self.extract_features(data['image0'])
             lafs0, descs0 = feats_dict0['lafs'], feats_dict0['descriptors']
-        else:
-            lafs0, descs0 = data['lafs0'], data['descriptors0']
-
-        if ('lafs1' not in data.keys()) or ('descriptors1' not in data.keys()):
-            feats_dict1: Dict[str, torch.Tensor] = self.extract_features(data['image1'])
-            lafs1, descs1 = feats_dict1['lafs'], feats_dict1['descriptors']
-        else:
+        if 'lafs1' in data and 'descriptors1' in data:
             lafs1, descs1 = data['lafs1'], data['descriptors1']
 
+        else:
+            feats_dict1: Dict[str, torch.Tensor] = self.extract_features(data['image1'])
+            lafs1, descs1 = feats_dict1['lafs'], feats_dict1['descriptors']
         keypoints0: torch.Tensor = get_laf_center(lafs0)
         keypoints1: torch.Tensor = get_laf_center(lafs1)
 
@@ -280,7 +280,7 @@ class LocalFeatureMatcher(nn.Module):
             out_lafs1.append(current_lafs_1)
             out_batch_indexes.append(batch_idxs)
 
-        if len(out_batch_indexes) == 0:
+        if not out_batch_indexes:
             return self.no_match_output(data['image0'].device,
                                         data['image0'].dtype)
 

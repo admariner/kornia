@@ -36,7 +36,7 @@ with open("README.md", encoding="utf-8") as fh:
 
 def load_requirements(filename: str):
     with open(filename) as f:
-        return [x.strip() for x in f.readlines() if "-r" != x[0:2]]
+        return [x.strip() for x in f.readlines() if x[:2] != "-r"]
 
 
 requirements_extras = {

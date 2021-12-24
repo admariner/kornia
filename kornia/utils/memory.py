@@ -35,11 +35,8 @@ def batched_forward(
         n_batches = int(B // bs + 1)
         for batch_idx in range(n_batches):
             st = batch_idx * bs
-            if batch_idx == n_batches - 1:
-                if (batch_idx + 1) * bs > B:
-                    end = B
-                else:
-                    end = (batch_idx + 1) * bs
+            if batch_idx == n_batches - 1 and (batch_idx + 1) * bs > B:
+                end = B
             else:
                 end = (batch_idx + 1) * bs
             if st >= end:

@@ -3,9 +3,10 @@ from typing import Dict
 import torch
 import torch.nn as nn
 
-urls: Dict[str, str] = {}
-urls["lib"] = "https://github.com/yuruntian/SOSNet/raw/master/sosnet-weights/sosnet_32x32_liberty.pth"
-urls["hp_a"] = "https://github.com/yuruntian/SOSNet/raw/master/sosnet-weights/sosnet_32x32_hpatches_a.pth"
+urls: Dict[str, str] = {
+    'lib': 'https://github.com/yuruntian/SOSNet/raw/master/sosnet-weights/sosnet_32x32_liberty.pth',
+    'hp_a': 'https://github.com/yuruntian/SOSNet/raw/master/sosnet-weights/sosnet_32x32_hpatches_a.pth',
+}
 
 
 class SOSNet(nn.Module):

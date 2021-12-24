@@ -161,12 +161,16 @@ class ImageSequential(SequentialBase):
         )
 
         mix_added = False
-        if with_mix and len(mix_indices) != 0:
-            # Make the selection fair.
-            if (torch.rand(1) < ((len(mix_indices) + len(indices)) / len(self))).item():
-                indices[-1] = torch.multinomial((~multinomial_weights.bool()).float(), 1)
-                indices = indices[torch.randperm(len(indices))]
-                mix_added = True
+        if (
+            with_mix
+            and len(mix_indices) != 0
+            and (
+                torch.rand(1) < ((len(mix_indices) + len(indices)) / len(self))
+            ).item()
+        ):
+            indices[-1] = torch.multinomial((~multinomial_weights.bool()).float(), 1)
+            indices = indices[torch.randperm(len(indices))]
+            mix_added = True
 
         return self.get_children_by_indices(indices), mix_added
 
@@ -175,11 +179,11 @@ class ImageSequential(SequentialBase):
 
         Special operations needed for label-involved augmentations.
         """
-        indices = []
-        for idx, (_, child) in enumerate(named_modules):
-            if isinstance(child, (MixAugmentationBase,)):
-                indices.append(idx)
-        return indices
+        return [
+            idx
+            for idx, (_, child) in enumerate(named_modules)
+            if isinstance(child, (MixAugmentationBase,))
+        ]
 
     def get_forward_sequence(self, params: Optional[List[ParamItem]] = None) -> Iterator[Tuple[str, nn.Module]]:
         if params is None:
@@ -216,10 +220,9 @@ class ImageSequential(SequentialBase):
         params: List[ParamItem] = []
         mod_param: Union[dict, list]
         for name, module in named_modules:
-            if isinstance(module, (_AugmentationBase, MixAugmentationBase)):
-                mod_param = module.forward_parameters(batch_shape)
-                param = ParamItem(name, mod_param)
-            elif isinstance(module, ImageSequential):
+            if isinstance(
+                module, (_AugmentationBase, MixAugmentationBase, ImageSequential)
+            ):
                 mod_param = module.forward_parameters(batch_shape)
                 param = ParamItem(name, mod_param)
             else:
@@ -229,10 +232,11 @@ class ImageSequential(SequentialBase):
 
     def contains_label_operations(self, params: List[ParamItem]) -> bool:
         """Check if current sequential contains label-involved operations like MixUp."""
-        for param in params:
-            if param.name.startswith("RandomMixUp") or param.name.startswith("RandomCutMix"):
-                return True
-        return False
+        return any(
+            param.name.startswith("RandomMixUp")
+            or param.name.startswith("RandomCutMix")
+            for param in params
+        )
 
     def __packup_output__(
         self, output: TensorWithTransformMat, label: Optional[torch.Tensor] = None
@@ -317,10 +321,6 @@ class ImageSequential(SequentialBase):
                 input = module.inverse(input, param.data)
             elif isinstance(module, (GeometricAugmentationBase2D,)):
                 input = self.apply_inverse_func.inverse(input, module, param)
-            else:
-                pass
-                # raise NotImplementedError(f"`inverse` is not implemented for {module}.")
-
         return input
 
     def forward(  # type: ignore
@@ -331,10 +331,7 @@ class ImageSequential(SequentialBase):
     ) -> Union[TensorWithTransformMat, Tuple[TensorWithTransformMat, torch.Tensor]]:
         self.clear_state()
         if params is None:
-            if isinstance(input, (tuple, list)):
-                inp = input[0]
-            else:
-                inp = input
+            inp = input[0] if isinstance(input, (tuple, list)) else input
             _, out_shape = self.autofill_dim(inp, dim_range=(2, 4))
             params = self.forward_parameters(out_shape)
         if self.return_label is None:

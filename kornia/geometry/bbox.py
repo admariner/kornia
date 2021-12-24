@@ -28,7 +28,7 @@ def validate_bbox(boxes: torch.Tensor) -> bool:
             of Bx4x2, where each box is defined in the following ``clockwise`` order: top-left, top-right, bottom-right,
             bottom-left. The coordinates must be in the x, y order.
     """
-    if not (len(boxes.shape) == 3 and boxes.shape[1:] == torch.Size([4, 2])):
+    if len(boxes.shape) != 3 or boxes.shape[1:] != torch.Size([4, 2]):
         raise AssertionError(f"Box shape must be (B, 4, 2). Got {boxes.shape}.")
 
     if not torch.allclose((boxes[:, 1, 0] - boxes[:, 0, 0] + 1), (boxes[:, 2, 0] - boxes[:, 3, 0] + 1)):
@@ -56,7 +56,7 @@ def validate_bbox3d(boxes: torch.Tensor) -> bool:
             front-bottom-right, front-bottom-left, back-top-left, back-top-right, back-bottom-right, back-bottom-left.
             The coordinates must be in the x, y, z order.
     """
-    if not (len(boxes.shape) == 3 and boxes.shape[1:] == torch.Size([8, 3])):
+    if len(boxes.shape) != 3 or boxes.shape[1:] != torch.Size([8, 3]):
         raise AssertionError(f"Box shape must be (B, 8, 3). Got {boxes.shape}.")
 
     left = torch.index_select(boxes, 1, torch.tensor([1, 2, 5, 6], device=boxes.device, dtype=torch.long))[:, :, 0]
@@ -313,9 +313,9 @@ def bbox_generator(
                  [3, 3],
                  [1, 3]]])
     """
-    if not (x_start.shape == y_start.shape and x_start.dim() in [0, 1]):
+    if x_start.shape != y_start.shape or x_start.dim() not in [0, 1]:
         raise AssertionError(f"`x_start` and `y_start` must be a scalar or (B,). Got {x_start}, {y_start}.")
-    if not (width.shape == height.shape and width.dim() in [0, 1]):
+    if width.shape != height.shape or width.dim() not in [0, 1]:
         raise AssertionError(f"`width` and `height` must be a scalar or (B,). Got {width}, {height}.")
     if not x_start.dtype == y_start.dtype == width.dtype == height.dtype:
         raise AssertionError(
@@ -545,6 +545,6 @@ def nms(boxes: torch.Tensor, scores: torch.Tensor, iou_threshold: float) -> torc
         inds = torch.where(ovr <= iou_threshold)[0]
         order = order[inds + 1]
 
-    if len(keep) > 0:
+    if keep:
         return torch.stack(keep)
     return torch.tensor(keep)

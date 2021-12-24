@@ -38,8 +38,9 @@ def _compute_tensor_center(tensor: torch.Tensor) -> torch.Tensor:
     height, width = tensor.shape[-2:]
     center_x: float = float(width - 1) / 2
     center_y: float = float(height - 1) / 2
-    center: torch.Tensor = torch.tensor([center_x, center_y], device=tensor.device, dtype=tensor.dtype)
-    return center
+    return torch.tensor(
+        [center_x, center_y], device=tensor.device, dtype=tensor.dtype
+    )
 
 
 def _compute_tensor_center3d(tensor: torch.Tensor) -> torch.Tensor:
@@ -50,15 +51,17 @@ def _compute_tensor_center3d(tensor: torch.Tensor) -> torch.Tensor:
     center_x: float = float(width - 1) / 2
     center_y: float = float(height - 1) / 2
     center_z: float = float(depth - 1) / 2
-    center: torch.Tensor = torch.tensor([center_x, center_y, center_z], device=tensor.device, dtype=tensor.dtype)
-    return center
+    return torch.tensor(
+        [center_x, center_y, center_z],
+        device=tensor.device,
+        dtype=tensor.dtype,
+    )
 
 
 def _compute_rotation_matrix(angle: torch.Tensor, center: torch.Tensor) -> torch.Tensor:
     """Compute a pure affine rotation matrix."""
     scale: torch.Tensor = torch.ones_like(center)
-    matrix: torch.Tensor = get_rotation_matrix2d(center, angle, scale)
-    return matrix
+    return get_rotation_matrix2d(center, angle, scale)
 
 
 def _compute_rotation_matrix3d(
@@ -80,8 +83,7 @@ def _compute_rotation_matrix3d(
 
     angles: torch.Tensor = torch.cat([yaw, pitch, roll], dim=1)
     scales: torch.Tensor = torch.ones_like(yaw)
-    matrix: torch.Tensor = get_projective_transform(center, angles, scales)
-    return matrix
+    return get_projective_transform(center, angles, scales)
 
 
 def _compute_translation_matrix(translation: torch.Tensor) -> torch.Tensor:
@@ -98,8 +100,7 @@ def _compute_translation_matrix(translation: torch.Tensor) -> torch.Tensor:
 def _compute_scaling_matrix(scale: torch.Tensor, center: torch.Tensor) -> torch.Tensor:
     """Compute affine matrix for scaling."""
     angle: torch.Tensor = torch.zeros(scale.shape[:1], device=scale.device, dtype=scale.dtype)
-    matrix: torch.Tensor = get_rotation_matrix2d(center, angle, scale)
-    return matrix
+    return get_rotation_matrix2d(center, angle, scale)
 
 
 def _compute_shear_matrix(shear: torch.Tensor) -> torch.Tensor:
@@ -597,8 +598,9 @@ def resize(
 
         input = gaussian_blur2d(input, ks, sigmas)
 
-    output = torch.nn.functional.interpolate(input, size=size, mode=interpolation, align_corners=align_corners)
-    return output
+    return torch.nn.functional.interpolate(
+        input, size=size, mode=interpolation, align_corners=align_corners
+    )
 
 
 def rescale(
@@ -750,7 +752,7 @@ class Affine(nn.Module):
             raise RuntimeError(msg)
 
         batch_size = batch_sizes[0]
-        if not all(other == batch_size for other in batch_sizes[1:]):
+        if any(other != batch_size for other in batch_sizes[1:]):
             raise RuntimeError(f"The batch sizes of the affine parameters mismatch: {batch_sizes}")
 
         self._batch_size = batch_size

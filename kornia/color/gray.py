@@ -27,13 +27,11 @@ def grayscale_to_rgb(image: torch.Tensor) -> torch.Tensor:
     if image.dim() < 3 or image.size(-3) != 1:
         raise ValueError(f"Input size must have a shape of (*, 1, H, W). " f"Got {image.shape}.")
 
-    rgb: torch.Tensor = torch.cat([image, image, image], dim=-3)
-
     # TODO: we should find a better way to raise this kind of warnings
     # if not torch.is_floating_point(image):
     #     warnings.warn(f"Input image is not of float dtype. Got {image.dtype}")
 
-    return rgb
+    return torch.cat([image, image, image], dim=-3)
 
 
 def rgb_to_grayscale(

@@ -13,7 +13,7 @@ def cross_product_matrix(x: torch.Tensor) -> torch.Tensor:
         The constructed cross_product_matrix symmetric matrix with shape :math:`(B, 3, 3)`.
 
     """
-    if not (len(x.shape) == 2 and x.shape[1] == 3):
+    if len(x.shape) != 2 or x.shape[1] != 3:
         raise AssertionError(x.shape)
     # get vector compononens
     x0 = x[..., 0]
