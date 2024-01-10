@@ -1,11 +1,11 @@
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import torch
 import torch.nn.functional as F
 
 from kornia.core import Module, Tensor, concatenate, pad, stack
+from kornia.core.check import KORNIA_CHECK_SHAPE
 from kornia.geometry.conversions import normalize_pixel_coordinates
-from kornia.testing import KORNIA_CHECK_SHAPE
 from kornia.utils import map_location_to_cpu
 
 from .backbones import SOLD2Net
@@ -15,36 +15,36 @@ urls: Dict[str, str] = {}
 urls["wireframe"] = "http://cmp.felk.cvut.cz/~mishkdmy/models/sold2_wireframe.pth"
 
 
-default_cfg: Dict = {
-    'backbone_cfg': {'input_channel': 1, 'depth': 4, 'num_stacks': 2, 'num_blocks': 1, 'num_classes': 5},
-    'use_descriptor': True,
-    'grid_size': 8,
-    'keep_border_valid': True,
-    'detection_thresh': 0.0153846,  # = 1/65: threshold of junction detection
-    'max_num_junctions': 500,  # maximum number of junctions per image
-    'line_detector_cfg': {
-        'detect_thresh': 0.5,
-        'num_samples': 64,
-        'inlier_thresh': 0.99,
-        'use_candidate_suppression': True,
-        'nms_dist_tolerance': 3.0,
-        'use_heatmap_refinement': True,
-        'heatmap_refine_cfg': {
-            'mode': "local",
-            'ratio': 0.2,
-            'valid_thresh': 0.001,
-            'num_blocks': 20,
-            'overlap_ratio': 0.5,
+default_cfg: Dict[str, Any] = {
+    "backbone_cfg": {"input_channel": 1, "depth": 4, "num_stacks": 2, "num_blocks": 1, "num_classes": 5},
+    "use_descriptor": True,
+    "grid_size": 8,
+    "keep_border_valid": True,
+    "detection_thresh": 0.0153846,  # = 1/65: threshold of junction detection
+    "max_num_junctions": 500,  # maximum number of junctions per image
+    "line_detector_cfg": {
+        "detect_thresh": 0.5,
+        "num_samples": 64,
+        "inlier_thresh": 0.99,
+        "use_candidate_suppression": True,
+        "nms_dist_tolerance": 3.0,
+        "use_heatmap_refinement": True,
+        "heatmap_refine_cfg": {
+            "mode": "local",
+            "ratio": 0.2,
+            "valid_thresh": 0.001,
+            "num_blocks": 20,
+            "overlap_ratio": 0.5,
         },
-        'use_junction_refinement': True,
-        'junction_refine_cfg': {'num_perturbs': 9, 'perturb_interval': 0.25},
+        "use_junction_refinement": True,
+        "junction_refine_cfg": {"num_perturbs": 9, "perturb_interval": 0.25},
     },
-    'line_matcher_cfg': {
-        'cross_check': True,
-        'num_samples': 5,
-        'min_dist_pts': 8,
-        'top_k_candidates': 10,
-        'grid_size': 4,
+    "line_matcher_cfg": {
+        "cross_check": True,
+        "num_samples": 5,
+        "min_dist_pts": 8,
+        "top_k_candidates": 10,
+        "grid_size": 4,
     },
 }
 
@@ -75,7 +75,7 @@ class SOLD2(Module):
         >>> matches = sold2.match(line_seg1, line_seg2, desc1[None], desc2[None])
     """
 
-    def __init__(self, pretrained: bool = True, config: Optional[Dict] = None):
+    def __init__(self, pretrained: bool = True, config: Optional[Dict[str, Any]] = None) -> None:
         super().__init__()
         # Initialize some parameters
         self.config = default_cfg if config is None else config
@@ -87,7 +87,7 @@ class SOLD2(Module):
         self.model = SOLD2Net(self.config)
         if pretrained:
             pretrained_dict = torch.hub.load_state_dict_from_url(urls["wireframe"], map_location=map_location_to_cpu)
-            state_dict = self.adapt_state_dict(pretrained_dict['model_state_dict'])
+            state_dict = self.adapt_state_dict(pretrained_dict["model_state_dict"])
             self.model.load_state_dict(state_dict)
         self.eval()
 
@@ -98,7 +98,7 @@ class SOLD2(Module):
         # Initialize the line matcher
         self.line_matcher = WunschLineMatcher(**self.config["line_matcher_cfg"])
 
-    def forward(self, img: Tensor) -> Dict:
+    def forward(self, img: Tensor) -> Dict[str, Any]:
         """
         Args:
             img: batched images with shape :math:`(B, 1, H, W)`.
@@ -143,7 +143,7 @@ class SOLD2(Module):
         """
         return self.line_matcher(line_seg1, line_seg2, desc1, desc2)
 
-    def adapt_state_dict(self, state_dict):
+    def adapt_state_dict(self, state_dict: Dict[str, Any]) -> Dict[str, Any]:
         del state_dict["w_junc"]
         del state_dict["w_heatmap"]
         del state_dict["w_desc"]
@@ -168,7 +168,7 @@ class WunschLineMatcher(Module):
         top_k_candidates: int = 10,
         grid_size: int = 8,
         line_score: bool = False,
-    ):
+    ) -> None:
         super().__init__()
         self.cross_check = cross_check
         self.num_samples = num_samples
@@ -225,7 +225,7 @@ class WunschLineMatcher(Module):
 
         return matches
 
-    def sample_line_points(self, line_seg: Tensor) -> Tuple:
+    def sample_line_points(self, line_seg: Tensor) -> Tuple[Tensor, Tensor]:
         """Regularly sample points along each line segments, with a minimal distance between each point.
 
         Pad the remaining points.
@@ -238,14 +238,14 @@ class WunschLineMatcher(Module):
         KORNIA_CHECK_SHAPE(line_seg, ["N", "2", "2"])
         num_lines = len(line_seg)
         line_lengths = torch.norm(line_seg[:, 0] - line_seg[:, 1], dim=1)
-
+        dev = line_seg.device
         # Sample the points separated by at least min_dist_pts along each line
         # The number of samples depends on the length of the line
         num_samples_lst = torch.clamp(
-            torch.div(line_lengths, self.min_dist_pts, rounding_mode='floor'), 2, self.num_samples
+            torch.div(line_lengths, self.min_dist_pts, rounding_mode="floor"), 2, self.num_samples
         ).int()
-        line_points = torch.empty((num_lines, self.num_samples, 2), dtype=torch.float)
-        valid_points = torch.empty((num_lines, self.num_samples), dtype=torch.bool)
+        line_points = torch.empty((num_lines, self.num_samples, 2), dtype=torch.float, device=dev)
+        valid_points = torch.empty((num_lines, self.num_samples), dtype=torch.bool, device=dev)
         for n_samp in range(2, self.num_samples + 1):
             # Consider all lines where we can fit up to n_samp points
             cur_mask = num_samples_lst == n_samp
@@ -256,7 +256,7 @@ class WunschLineMatcher(Module):
 
             # Pad
             cur_line_points = pad(cur_line_points, (0, 0, 0, self.num_samples - n_samp))
-            cur_valid_points = torch.ones(len(cur_line_seg), self.num_samples, dtype=torch.bool)
+            cur_valid_points = torch.ones(len(cur_line_seg), self.num_samples, dtype=torch.bool, device=dev)
             cur_valid_points[:, n_samp:] = False
 
             line_points[cur_mask] = cur_line_points
@@ -317,9 +317,9 @@ class WunschLineMatcher(Module):
         # Recalibrate the scores to get a gap score of 0
         gap = 0.1
         nw_scores = scores - gap
-
+        dev = scores.device
         # Run the dynamic programming algorithm
-        nw_grid = torch.zeros(b, n + 1, m + 1, dtype=torch.float)
+        nw_grid = torch.zeros(b, n + 1, m + 1, dtype=torch.float, device=dev)
         for i in range(n):
             for j in range(m):
                 nw_grid[:, i + 1, j + 1] = torch.maximum(
@@ -329,7 +329,7 @@ class WunschLineMatcher(Module):
         return nw_grid[:, -1, -1]
 
 
-def keypoints_to_grid(keypoints: Tensor, img_size: tuple) -> Tensor:
+def keypoints_to_grid(keypoints: Tensor, img_size: Tuple[int, int]) -> Tensor:
     """Convert a list of keypoints into a grid in [-1, 1]² that can be used in torch.nn.functional.interpolate.
 
     Args:
@@ -343,7 +343,7 @@ def keypoints_to_grid(keypoints: Tensor, img_size: tuple) -> Tensor:
     return grid_points
 
 
-def batched_linspace(start, end, step, dim):
+def batched_linspace(start: Tensor, end: Tensor, step: int, dim: int) -> Tensor:
     """Batch version of torch.normalize (similar to the numpy one)."""
     intervals = ((end - start) / (step - 1)).unsqueeze(dim)
     broadcast_size = [1] * len(intervals.shape)

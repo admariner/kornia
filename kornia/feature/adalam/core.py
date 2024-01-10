@@ -2,6 +2,7 @@ import math
 from typing import Optional, Tuple, Union
 
 import torch
+from typing_extensions import NotRequired, TypedDict
 
 from kornia.core import Tensor, concatenate, tensor, where
 
@@ -9,7 +10,46 @@ from .ransac import ransac
 from .utils import dist_matrix, orientation_diff
 
 
-def _no_match(dm: Tensor):
+class AdalamConfig(TypedDict):
+    """A config structure for the Adalam model.
+
+    Args:
+        area_ratio: Ratio between seed circle area and image area. Higher values produce more seeds with smaller
+        neighborhoods
+    search_expansion: Expansion factor of the seed circle radius for the purpose of collecting neighborhoods.
+        Increases neighborhood radius without changing seed distribution
+    ransac_iters: Fixed number of inner GPU-RANSAC iterations
+    min_inliers: Minimum number of inliers required to accept inliers coming from a neighborhood
+    min_confidence: Threshold used by the confidence-based GPU-RANSAC
+    orientation_difference_threshold: Maximum difference in orientations for a point to be accepted in a
+        neighborhood. Set to None to disable the use of keypoint orientations
+    scale_rate_threshold: Maximum difference (ratio) in scales for a point to be accepted in a neighborhood. Set
+        to None to disable the use of keypoint scales
+    detected_scale_rate_threshold: Prior on maximum possible scale change detectable in image couples. Affinities
+        with higher scale changes are regarded as outliers
+    refit: Whether to perform refitting at the end of the RANSACs. Generally improves accuracy at the cost of
+        runtime
+    force_seed_mnn: Whether to consider only MNN for the purpose of selecting seeds. Generally improves accuracy
+        at the cost of runtime
+    device: Device to be used for running AdaLAM. Use GPU if available.
+    mnn: Default None. You can provide a MNN mask in input to skip MNN computation and still get the improvement.
+    """
+
+    area_ratio: NotRequired[int]
+    search_expansion: NotRequired[int]
+    ransac_iters: NotRequired[int]
+    min_inliers: NotRequired[int]
+    min_confidence: NotRequired[int]
+    orientation_difference_threshold: NotRequired[int]
+    scale_rate_threshold: NotRequired[float]
+    detected_scale_rate_threshold: NotRequired[int]
+    refit: NotRequired[bool]
+    force_seed_mnn: NotRequired[bool]
+    device: NotRequired[torch.device]
+    mnn: NotRequired[Tensor]
+
+
+def _no_match(dm: Tensor) -> Tuple[Tensor, Tensor]:
     """Helper function, which output empty tensors.
 
     Returns:
@@ -21,7 +61,9 @@ def _no_match(dm: Tensor):
     return dists, idxs
 
 
-def select_seeds(dist1: Tensor, R1: Union[float, Tensor], scores1: Tensor, fnn12: Tensor, mnn: Optional[Tensor]):
+def select_seeds(
+    dist1: Tensor, R1: Union[float, Tensor], scores1: Tensor, fnn12: Tensor, mnn: Optional[Tensor]
+) -> Tuple[Tensor, Tensor]:
     """Select seed correspondences among the set of available matches.
 
     dist1: Precomputed distance matrix between keypoints in image I_1
@@ -44,9 +86,7 @@ def select_seeds(dist1: Tensor, R1: Union[float, Tensor], scores1: Tensor, fnn12
     im1scorescomp = scores1.unsqueeze(1) > scores1.unsqueeze(0)  # (n1, n1)
     # find out who scores higher than all of its neighbors: seed points
     if mnn is not None:
-        im1bs = (
-            (~torch.any(im1neighmap & im1scorescomp & mnn.unsqueeze(0), dim=1)) & mnn & (scores1 < 0.8**2)
-        )  # (n1,)
+        im1bs = (~torch.any(im1neighmap & im1scorescomp & mnn.unsqueeze(0), dim=1)) & mnn & (scores1 < 0.8**2)  # (n1,)
     else:
         im1bs = (~torch.any(im1neighmap & im1scorescomp, dim=1)) & (scores1 < 0.8**2)
 
@@ -73,7 +113,7 @@ def extract_neighborhood_sets(
     SCALE_RATE_THR: float,
     SEARCH_EXP: float,
     MIN_INLIERS: float,
-):
+) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
     """Assign keypoints to seed points. This checks both the distance and the agreement of the local transformation
     if available.
 
@@ -145,7 +185,7 @@ def extract_local_patterns(
     im1seeds: Tensor,
     im2seeds: Tensor,
     scores: Tensor,
-):
+) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]:
     """Prepare local neighborhoods around each seed for the parallel RANSACs. This involves two steps: 1) Collect
     all selected keypoints and refer them with respect to their seed point 2) Sort keypoints by score for the
     progressive sampling to pick the best samples first.
@@ -195,12 +235,7 @@ def extract_local_patterns(
 
     sorting_perm = torch.argsort(expanded_local_scores)
 
-    im1loc = im1loc[sorting_perm]
-    im2loc = im2loc[sorting_perm]
-    tokp1 = tokp1[sorting_perm]
-    tokp2 = tokp2[sorting_perm]
-
-    return im1loc, im2loc, ransidx, tokp1, tokp2
+    return im1loc[sorting_perm], im2loc[sorting_perm], ransidx, tokp1[sorting_perm], tokp2[sorting_perm]
 
 
 def adalam_core(
@@ -208,10 +243,10 @@ def adalam_core(
     k2: Tensor,
     fnn12: Tensor,
     scores1: Tensor,
-    config: dict,
+    config: AdalamConfig,
     mnn: Optional[Tensor] = None,
-    im1shape: Optional[Tuple] = None,
-    im2shape: Optional[Tuple] = None,
+    im1shape: Optional[Tuple[int, int]] = None,
+    im2shape: Optional[Tuple[int, int]] = None,
     o1: Optional[Tensor] = None,
     o2: Optional[Tensor] = None,
     s1: Optional[Tensor] = None,
@@ -228,19 +263,21 @@ def adalam_core(
             Expected a float32 tensor with shape (num_keypoints_in_destination_image, 2).
         fn12: Initial set of putative matches to be filtered.
               The current implementation assumes that these are unfiltered nearest neighbor matches,
-              so it requires this to be a list of indices a_i such that the source keypoint i is associated to the destination keypoint a_i.
-              For now to use AdaLAM on different inputs a workaround on the input format is required.
-              Expected a long tensor with shape (num_keypoints_in_source_image,).
+              so it requires this to be a list of indices a_i such that the source keypoint i is associated to the
+              destination keypoint a_i. For now to use AdaLAM on different inputs a workaround on the input format is
+              required. Expected a long tensor with shape (num_keypoints_in_source_image,).
         scores1: Confidence scores on the putative_matches. Usually holds Lowe's ratio scores.
-        mnn: A mask indicating which putative matches are also mutual nearest neighbors. See documentation on 'force_seed_mnn' in the DEFAULT_CONFIG.
-             If None, it disables the mutual nearest neighbor filtering on seed point selection.
-             Expected a bool tensor with shape (num_keypoints_in_source_image,)
-        im1shape: Shape of the source image. If None, it is inferred from keypoints max and min, at the cost of wasted runtime. So please provide it.
-                  Expected a tuple with (width, height) or (height, width) of source image
-        im2shape: Shape of the destination image. If None, it is inferred from keypoints max and min, at the cost of wasted runtime. So please provide it.
-                  Expected a tuple with (width, height) or (height, width) of destination image
-        o1/o2: keypoint orientations in degrees. They can be None if 'orientation_difference_threshold' in config is set to None.
-               See documentation on 'orientation_difference_threshold' in the DEFAULT_CONFIG.
+        mnn: A mask indicating which putative matches are also mutual nearest neighbors. See documentation on
+             'force_seed_mnn' in the DEFAULT_CONFIG. If None, it disables the mutual nearest neighbor filtering on seed
+             point selection. Expected a bool tensor with shape (num_keypoints_in_source_image,)
+        im1shape: Shape of the source image. If None, it is inferred from keypoints max and min, at the cost of wasted
+                  runtime. So please provide it. Expected a tuple with (width, height) or (height, width) of source
+                  image
+        im2shape: Shape of the destination image. If None, it is inferred from keypoints max and min, at the cost of
+                  wasted runtime. So please provide it. Expected a tuple with (width, height) or (height, width) of
+                  destination image
+        o1/o2: keypoint orientations in degrees. They can be None if 'orientation_difference_threshold' in config is
+               set to None. See documentation on 'orientation_difference_threshold' in the DEFAULT_CONFIG.
                Expected a float32 tensor with shape (num_keypoints_in_source/destination_image,)
         s1/s2: keypoint scales. They can be None if 'scale_rate_threshold' in config is set to None.
                See documentation on 'scale_rate_threshold' in the DEFAULT_CONFIG.
@@ -250,15 +287,15 @@ def adalam_core(
     Returns:
         idxs: A long tensor with shape (num_filtered_matches, 2) with indices of corresponding keypoints in k1 and k2.
         dists: inverse confidence ratio.
-    """  # noqa: E501
-    AREA_RATIO = config['area_ratio']
-    SEARCH_EXP = config['search_expansion']
-    RANSAC_ITERS = config['ransac_iters']
-    MIN_INLIERS = config['min_inliers']
-    MIN_CONF = config['min_confidence']
-    ORIENTATION_THR = config['orientation_difference_threshold']
-    SCALE_RATE_THR = config['scale_rate_threshold']
-    REFIT = config['refit']
+    """
+    AREA_RATIO = config["area_ratio"]
+    SEARCH_EXP = config["search_expansion"]
+    RANSAC_ITERS = config["ransac_iters"]
+    MIN_INLIERS = config["min_inliers"]
+    MIN_CONF = config["min_confidence"]
+    ORIENTATION_THR = config["orientation_difference_threshold"]
+    SCALE_RATE_THR = config["scale_rate_threshold"]
+    REFIT = config["refit"]
 
     if isinstance(im1shape, tuple):
         _im1shape = tensor(im1shape, device=k1.device, dtype=k1.dtype)
@@ -328,7 +365,7 @@ def adalam_core(
 
     # Run the parallel confidence-based RANSACs to perform local affine verification
     inlier_idx, _, inl_confidence, inlier_counts = ransac(
-        xsamples=im1loc, ysamples=im2loc, rdims=rdims, iters=RANSAC_ITERS, refit=REFIT, config=config
+        xsamples=im1loc, ysamples=im2loc, rdims=rdims, iters=RANSAC_ITERS, refit=REFIT, config=dict(config)
     )
 
     conf = inl_confidence[ransidx[inlier_idx]]

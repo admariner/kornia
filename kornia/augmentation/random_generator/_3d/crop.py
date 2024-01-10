@@ -45,7 +45,7 @@ class CropGenerator3D(RandomGeneratorBase):
     def make_samplers(self, device: torch.device, dtype: torch.dtype) -> None:
         self.rand_sampler = Uniform(tensor(0.0, device=device, dtype=dtype), tensor(1.0, device=device, dtype=dtype))
 
-    def forward(self, batch_shape: torch.Size, same_on_batch: bool = False) -> Dict[str, Tensor]:
+    def forward(self, batch_shape: Tuple[int, ...], same_on_batch: bool = False) -> Dict[str, Tensor]:
         batch_size, _, depth, height, width = batch_shape
         _common_param_check(batch_size, same_on_batch)
         _device, _dtype = _extract_device_dtype([self.size if isinstance(self.size, Tensor) else None])
@@ -75,13 +75,14 @@ class CropGenerator3D(RandomGeneratorBase):
 
         if (x_diff < 0).any() or (y_diff < 0).any() or (z_diff < 0).any():
             raise ValueError(
-                f"input_size {(depth, height, width)} cannot be smaller than crop size {str(size)} in any dimension."
+                f"input_size {(depth, height, width)} cannot be smaller than crop size {size!s} in any dimension."
             )
 
         if batch_size == 0:
-            return dict(
-                src=zeros([0, 8, 3], device=_device, dtype=_dtype), dst=zeros([0, 8, 3], device=_device, dtype=_dtype)
-            )
+            return {
+                "src": zeros([0, 8, 3], device=_device, dtype=_dtype),
+                "dst": zeros([0, 8, 3], device=_device, dtype=_dtype),
+            }
 
         x_start = _adapted_rsampling((batch_size,), self.rand_sampler, same_on_batch).to(device=_device, dtype=_dtype)
         y_start = _adapted_rsampling((batch_size,), self.rand_sampler, same_on_batch).to(device=_device, dtype=_dtype)
@@ -132,7 +133,7 @@ class CropGenerator3D(RandomGeneratorBase):
                 dtype=_dtype,
             ).repeat(batch_size, 1, 1)
 
-        return dict(src=crop_src.to(device=_device), dst=crop_dst.to(device=_device))
+        return {"src": crop_src.to(device=_device), "dst": crop_dst.to(device=_device)}
 
 
 def center_crop_generator3d(
@@ -141,7 +142,7 @@ def center_crop_generator3d(
     height: int,
     width: int,
     size: Tuple[int, int, int],
-    device: Device = torch.device('cpu'),
+    device: Device = torch.device("cpu"),
 ) -> Dict[str, Tensor]:
     r"""Get parameters for ```center_crop3d``` transformation for center crop transform.
 
@@ -164,14 +165,19 @@ def center_crop_generator3d(
     if not isinstance(size, (tuple, list)) and len(size) == 3:
         raise ValueError(f"Input size must be a tuple/list of length 3. Got {size}")
     if not (
-        type(depth) is int and depth > 0 and type(height) is int and height > 0 and type(width) is int and width > 0
+        isinstance(depth, int)
+        and depth > 0
+        and isinstance(height, int)
+        and height > 0
+        and isinstance(width, int)
+        and width > 0
     ):
         raise AssertionError(f"'depth', 'height' and 'width' must be integers. Got {depth}, {height}, {width}.")
     if not (depth >= size[0] and height >= size[1] and width >= size[2]):
         raise AssertionError(f"Crop size must be smaller than input size. Got ({depth}, {height}, {width}) and {size}.")
 
     if batch_size == 0:
-        return dict(src=zeros([0, 8, 3]), dst=zeros([0, 8, 3]))
+        return {"src": zeros([0, 8, 3]), "dst": zeros([0, 8, 3])}
     # unpack input sizes
     dst_d, dst_h, dst_w = size
     src_d, src_h, src_w = (depth, height, width)
@@ -232,4 +238,4 @@ def center_crop_generator3d(
         device=device,
         dtype=torch.long,
     ).expand(batch_size, -1, -1)
-    return dict(src=points_src, dst=points_dst)
+    return {"src": points_src, "dst": points_dst}

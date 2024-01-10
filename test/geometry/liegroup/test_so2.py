@@ -2,6 +2,7 @@ import pytest
 import torch
 
 from kornia.geometry.liegroup import So2
+from kornia.geometry.vector import Vector2
 from kornia.testing import BaseTester
 
 
@@ -38,6 +39,8 @@ class TestSo2(BaseTester):
     @pytest.mark.parametrize("input_shape", [(1, 2, 2), (2, 2, 2), (5, 2, 2), (2, 2)])
     def test_matrix_cardinality(self, device, dtype, input_shape):
         matrix = torch.rand(input_shape, dtype=dtype, device=device)
+        matrix[..., 0, 1] = -matrix[..., 1, 0]
+        matrix[..., 1, 1] = matrix[..., 0, 0]
         s = So2.from_matrix(matrix)
         assert s.matrix().shape == input_shape
 
@@ -55,6 +58,9 @@ class TestSo2(BaseTester):
         with pytest.raises(ValueError):
             theta = torch.rand((2, 2), dtype=dtype, device=device)
             assert So2.hat(theta)
+        with pytest.raises(ValueError):
+            m = torch.rand((2, 2, 1), dtype=dtype, device=device)
+            assert So2.from_matrix(m)
         with pytest.raises(ValueError):
             m = torch.rand((2, 2, 1), dtype=dtype, device=device)
             assert So2.from_matrix(m)
@@ -121,6 +127,18 @@ class TestSo2(BaseTester):
         self.assert_close((So2.identity(device=device, dtype=dtype) * t2), t2)
 
     @pytest.mark.parametrize("batch_size", (None, 1, 2, 5))
+    def test_mul_vector(self, device, dtype, batch_size):
+        s1 = So2.identity(batch_size, device, dtype)
+        if batch_size is None:
+            shape = ()
+        else:
+            shape = (batch_size,)
+        t1 = Vector2.random(shape, device, dtype)
+        t2 = Vector2.random(shape, device, dtype)
+        self.assert_close((s1 * t1), t1)
+        self.assert_close((So2.identity(device=device, dtype=dtype) * t2), t2)
+
+    @pytest.mark.parametrize("batch_size", (None, 1, 2, 5))
     def test_exp(self, device, dtype, batch_size):
         theta = self._make_rand_data(device, dtype, (batch_size, 1))
         s = So2.exp(theta)
@@ -147,6 +165,19 @@ class TestSo2(BaseTester):
         self.assert_close((m @ o).reshape(-1, 2, 1), theta.reshape(-1, 1, 1).repeat(1, 2, 1))
 
     @pytest.mark.parametrize("batch_size", (None, 1, 2, 5))
+    def test_vee(self, device, dtype, batch_size):
+        omega = self._make_rand_data(device, dtype, (batch_size, 2, 2))
+        theta = So2.vee(omega)
+        self.assert_close(omega[..., 0, 1], theta)
+
+    @pytest.mark.parametrize("batch_size", (None, 1, 2, 5))
+    def test_hat_vee(self, device, dtype, batch_size):
+        a = self._make_rand_data(device, dtype, (batch_size,))
+        omega = So2.hat(a)
+        b = So2.vee(omega)
+        self.assert_close(b, a)
+
+    @pytest.mark.parametrize("batch_size", (None, 1, 2, 5))
     def test_matrix(self, device, dtype, batch_size):
         theta = self._make_rand_data(device, dtype, (batch_size,))
         t = self._make_rand_data(device, dtype, (batch_size, 2))
@@ -154,6 +185,20 @@ class TestSo2(BaseTester):
         p1 = s * t
         p2 = s.matrix() @ t[..., None]
         self.assert_close(p1, p2.squeeze(-1))
+
+    @pytest.mark.parametrize("batch_size", (None, 1, 2, 5))
+    def test_from_matrix(self, device, dtype, batch_size):
+        matrix = torch.eye(2, device=device, dtype=dtype)
+        if batch_size is not None:
+            matrix = matrix.repeat(batch_size, 1, 1)
+            one = torch.ones((batch_size,), device=device, dtype=dtype)
+            zero = torch.zeros((batch_size,), device=device, dtype=dtype)
+        else:
+            one = torch.tensor(1, device=device, dtype=dtype)
+            zero = torch.tensor(0, device=device, dtype=dtype)
+        s = So2.from_matrix(matrix)
+        self.assert_close(s.z.real, one)
+        self.assert_close(s.z.imag, zero)
 
     @pytest.mark.parametrize("batch_size", (None, 1, 2, 5))
     @pytest.mark.parametrize("cdtype", (torch.cfloat, torch.cdouble))
@@ -171,3 +216,8 @@ class TestSo2(BaseTester):
         i = So2.identity(batch_size=batch_size, device=device, dtype=dtype)
         self.assert_close(s_in_s.z.real, i.z.real)
         self.assert_close(s_in_s.z.imag, i.z.imag)
+
+    @pytest.mark.parametrize("batch_size", (None, 1, 2, 5))
+    def test_adjoint(self, device, dtype, batch_size):
+        s = So2.identity(batch_size, device=device, dtype=dtype)
+        self.assert_close(s.matrix(), s.adjoint())

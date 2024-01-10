@@ -1,11 +1,11 @@
 import math
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import torch
 
-from kornia.core import Module, Tensor, concatenate, stack, tensor, where, zeros
+from kornia.core import Module, Tensor, concatenate, sin, stack, tensor, where, zeros
+from kornia.core.check import KORNIA_CHECK_SHAPE
 from kornia.geometry.bbox import nms
-from kornia.testing import KORNIA_CHECK_SHAPE
 from kornia.utils import map_location_to_cpu, torch_meshgrid
 
 from .backbones import SOLD2Net
@@ -15,28 +15,28 @@ urls["wireframe"] = "https://www.polybox.ethz.ch/index.php/s/blOrW89gqSLoHOk/dow
 
 
 default_detector_cfg = {
-    'backbone_cfg': {'input_channel': 1, 'depth': 4, 'num_stacks': 2, 'num_blocks': 1, 'num_classes': 5},
-    'use_descriptor': False,
-    'grid_size': 8,
-    'keep_border_valid': True,
-    'detection_thresh': 0.0153846,  # = 1/65: threshold of junction detection
-    'max_num_junctions': 500,  # maximum number of junctions per image
-    'line_detector_cfg': {
-        'detect_thresh': 0.5,
-        'num_samples': 64,
-        'inlier_thresh': 0.99,
-        'use_candidate_suppression': True,
-        'nms_dist_tolerance': 3.0,
-        'use_heatmap_refinement': True,
-        'heatmap_refine_cfg': {
-            'mode': "local",
-            'ratio': 0.2,
-            'valid_thresh': 0.001,
-            'num_blocks': 20,
-            'overlap_ratio': 0.5,
+    "backbone_cfg": {"input_channel": 1, "depth": 4, "num_stacks": 2, "num_blocks": 1, "num_classes": 5},
+    "use_descriptor": False,
+    "grid_size": 8,
+    "keep_border_valid": True,
+    "detection_thresh": 0.0153846,  # = 1/65: threshold of junction detection
+    "max_num_junctions": 500,  # maximum number of junctions per image
+    "line_detector_cfg": {
+        "detect_thresh": 0.5,
+        "num_samples": 64,
+        "inlier_thresh": 0.99,
+        "use_candidate_suppression": True,
+        "nms_dist_tolerance": 3.0,
+        "use_heatmap_refinement": True,
+        "heatmap_refine_cfg": {
+            "mode": "local",
+            "ratio": 0.2,
+            "valid_thresh": 0.001,
+            "num_blocks": 20,
+            "overlap_ratio": 0.5,
         },
-        'use_junction_refinement': True,
-        'junction_refine_cfg': {'num_perturbs': 9, 'perturb_interval': 0.25},
+        "use_junction_refinement": True,
+        "junction_refine_cfg": {"num_perturbs": 9, "perturb_interval": 0.25},
     },
 }
 
@@ -61,7 +61,7 @@ class SOLD2_detector(Module):
         >>> line_segments = sold2_detector(img)["line_segments"]
     """
 
-    def __init__(self, pretrained: bool = True, config: Optional[Dict] = None):
+    def __init__(self, pretrained: bool = True, config: Optional[Dict[str, Any]] = None) -> None:
         super().__init__()
         # Initialize some parameters
         self.config = default_detector_cfg if config is None else config
@@ -73,7 +73,7 @@ class SOLD2_detector(Module):
         self.model = SOLD2Net(self.config)
         if pretrained:
             pretrained_dict = torch.hub.load_state_dict_from_url(urls["wireframe"], map_location=map_location_to_cpu)
-            state_dict = self.adapt_state_dict(pretrained_dict['model_state_dict'])
+            state_dict = self.adapt_state_dict(pretrained_dict["model_state_dict"])
             self.model.load_state_dict(state_dict)
         self.eval()
 
@@ -81,7 +81,7 @@ class SOLD2_detector(Module):
         self.line_detector_cfg = self.config["line_detector_cfg"]
         self.line_detector = LineSegmentDetectionModule(**self.config["line_detector_cfg"])
 
-    def adapt_state_dict(self, state_dict):
+    def adapt_state_dict(self, state_dict: Dict[str, Any]) -> Dict[str, Any]:
         del state_dict["w_junc"]
         del state_dict["w_heatmap"]
         del state_dict["w_desc"]
@@ -91,7 +91,7 @@ class SOLD2_detector(Module):
         del state_dict["heatmap_decoder.conv_block_lst.2.bias"]
         return state_dict
 
-    def forward(self, img: Tensor) -> Dict:
+    def forward(self, img: Tensor) -> Dict[str, Any]:
         """
         Args:
             img: batched images with shape :math:`(B, 1, H, W)`.
@@ -154,10 +154,10 @@ class LineSegmentDetectionModule:
         use_candidate_suppression: bool = False,
         nms_dist_tolerance: float = 3.0,
         use_heatmap_refinement: bool = False,
-        heatmap_refine_cfg=None,
+        heatmap_refine_cfg: Optional[Dict[str, Any]] = None,
         use_junction_refinement: bool = False,
-        junction_refine_cfg=None,
-    ):
+        junction_refine_cfg: Optional[Dict[str, Any]] = None,
+    ) -> None:
         # Line detection parameters
         self.detect_thresh = detect_thresh
 
@@ -190,14 +190,14 @@ class LineSegmentDetectionModule:
         if self.use_junction_refinement and self.junction_refine_cfg is None:
             raise ValueError("[Error] Missing junction refinement config.")
 
-    def detect(self, junctions: Tensor, heatmap: Tensor) -> Tuple:
+    def detect(self, junctions: Tensor, heatmap: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         """Main function performing line segment detection."""
         KORNIA_CHECK_SHAPE(heatmap, ["H", "W"])
         H, W = heatmap.shape
         device = junctions.device
 
         # Perform the heatmap refinement
-        if self.use_heatmap_refinement:
+        if self.use_heatmap_refinement and isinstance(self.heatmap_refine_cfg, dict):
             if self.heatmap_refine_cfg["mode"] == "global":
                 heatmap = self.refine_heatmap(
                     heatmap, self.heatmap_refine_cfg["ratio"], self.heatmap_refine_cfg["valid_thresh"]
@@ -366,13 +366,13 @@ class LineSegmentDetectionModule:
         cand_vecs = junctions[None, ...] - start_points.unsqueeze(dim=1)
         cand_vecs_norm = torch.norm(cand_vecs, dim=-1)
         # Check whether they are projected directly onto the segment
-        proj = torch.einsum('bij,bjk->bik', cand_vecs, dir_vecs[..., None]) / line_dists[..., None, None]
+        proj = torch.einsum("bij,bjk->bik", cand_vecs, dir_vecs[..., None]) / line_dists[..., None, None]
         # proj is num_segs x num_junction x 1
         proj_mask = (proj >= 0) * (proj <= 1)
         cand_angles = torch.acos(
-            torch.einsum('bij,bjk->bik', cand_vecs, dir_vecs[..., None]) / cand_vecs_norm[..., None]
+            torch.einsum("bij,bjk->bik", cand_vecs, dir_vecs[..., None]) / cand_vecs_norm[..., None]
         )
-        cand_dists = cand_vecs_norm[..., None] * torch.sin(cand_angles)
+        cand_dists = cand_vecs_norm[..., None] * sin(cand_angles)
         junc_dist_mask = cand_dists <= dist_tolerance
         junc_mask = junc_dist_mask * proj_mask
 
@@ -390,9 +390,11 @@ class LineSegmentDetectionModule:
 
     def refine_junction_perturb(
         self, junctions: Tensor, line_map: Tensor, heatmap: Tensor, H: int, W: int, device: torch.device
-    ) -> Tuple:
+    ) -> Tuple[Tensor, Tensor]:
         """Refine the line endpoints in a similar way as in LSD."""
         # Fetch refinement parameters
+        if not isinstance(self.junction_refine_cfg, dict):
+            raise TypeError(f"Expected to have a dict of config for junction. Gotcha {type(self.junction_refine_cfg)}")
         num_perturbs = self.junction_refine_cfg["num_perturbs"]
         perturb_interval = self.junction_refine_cfg["perturb_interval"]
         side_perturbs = (num_perturbs - 1) // 2
@@ -406,7 +408,7 @@ class LineSegmentDetectionModule:
         )
 
         h1_grid, w1_grid, h2_grid, w2_grid = torch_meshgrid(
-            [perturb_vec, perturb_vec, perturb_vec, perturb_vec], indexing='ij'
+            [perturb_vec, perturb_vec, perturb_vec, perturb_vec], indexing="ij"
         )
 
         perturb_tensor = concatenate(

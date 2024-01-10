@@ -6,9 +6,9 @@ from kornia.augmentation import random_generator as rg
 from kornia.augmentation._2d.mix.base import MixAugmentationBaseV2
 from kornia.constants import DataKey, Resample
 from kornia.core import Tensor, as_tensor, concatenate, pad, zeros
+from kornia.core.check import KORNIA_UNWRAP
 from kornia.geometry.boxes import Boxes
 from kornia.geometry.transform import crop_by_indices, crop_by_transform_mat, get_perspective_transform
-from kornia.testing import KORNIA_UNWRAP
 from kornia.utils import eye_like
 
 __all__ = ["RandomMosaic"]
@@ -35,7 +35,7 @@ class RandomMosaic(MixAugmentationBaseV2):
             each output will mix 4 images in a 2x2 grid.
         min_bbox_size: minimum area of bounding boxes. Default to 0.
         data_keys: the input type sequential for applying augmentations.
-            Accepts "input", "mask", "bbox", "bbox_xyxy", "bbox_xywh", "keypoints".
+            Accepts "input", "image", "mask", "bbox", "bbox_xyxy", "bbox_xywh", "keypoints".
         p: probability of applying the transformation for the whole batch.
         keepdim: whether to keep the output shape the same as input ``True`` or broadcast it
             to the batch form ``False``.
@@ -77,44 +77,45 @@ class RandomMosaic(MixAugmentationBaseV2):
         self.start_ratio_range = start_ratio_range
         self._param_generator = rg.MosaicGenerator(output_size, mosaic_grid, start_ratio_range)
 
-        self.flags = dict(
-            mosaic_grid=mosaic_grid,
-            output_size=output_size,
-            min_bbox_size=min_bbox_size,
-            padding_mode=padding_mode,
-            resample=Resample.get(resample),
-            align_corners=align_corners,
-            cropping_mode=cropping_mode,
-        )
+        self.flags = {
+            "mosaic_grid": mosaic_grid,
+            "output_size": output_size,
+            "min_bbox_size": min_bbox_size,
+            "padding_mode": padding_mode,
+            "resample": Resample.get(resample),
+            "align_corners": align_corners,
+            "cropping_mode": cropping_mode,
+        }
 
     def apply_transform_mask(self, input: Tensor, params: Dict[str, Tensor], flags: Dict[str, Any]) -> Tensor:
         raise NotImplementedError
 
     @torch.no_grad()
     def apply_transform_boxes(self, input: Boxes, params: Dict[str, Tensor], flags: Dict[str, Any]) -> Boxes:
+        to_apply = params["batch_prob"] > 0.5
         src_box = as_tensor(params["src"], device=input.device, dtype=input.dtype)
         dst_box = as_tensor(params["dst"], device=input.device, dtype=input.dtype)
         # Boxes is BxNx4x2 only.
         batch_shapes = as_tensor(params["batch_shapes"], device=input.device, dtype=input.dtype)
-        offset = zeros((len(params["batch_prob"]), 2), device=input.device, dtype=input.dtype)  # Bx2
+        offset = zeros((len(to_apply), 2), device=input.device, dtype=input.dtype)  # Bx2
         # NOTE: not a pretty good line I think.
         offset_end = dst_box[0, 2].repeat(input.data.shape[0], 1)
-        idx = torch.arange(0, input.data.shape[0], device=input.device, dtype=torch.long)[params["batch_prob"]]
+        idx = torch.arange(0, input.data.shape[0], device=input.device, dtype=torch.long)[to_apply]
 
         maybe_out_boxes: Optional[Boxes] = None
-        for i in range(flags['mosaic_grid'][0]):
-            for j in range(flags['mosaic_grid'][1]):
+        for i in range(flags["mosaic_grid"][0]):
+            for j in range(flags["mosaic_grid"][1]):
                 _offset = offset.clone()
                 _offset[idx, 0] = batch_shapes[:, -2] * i - src_box[:, 0, 0]
                 _offset[idx, 1] = batch_shapes[:, -1] * j - src_box[:, 0, 1]
                 _box = input.clone()
-                _idx = i * flags['mosaic_grid'][1] + j
+                _idx = i * flags["mosaic_grid"][1] + j
                 _box._data[params["permutation"][:, 0]] = _box._data[params["permutation"][:, _idx]]
                 _box.translate(_offset, inplace=True)
                 # zero-out unrelated batch elements.
-                _box._data[~params["batch_prob"]] = 0
+                _box._data[~to_apply] = 0
                 if maybe_out_boxes is None:
-                    _box._data[~params["batch_prob"]] = input._data[~params["batch_prob"]]
+                    _box._data[~to_apply] = input._data[~to_apply]
                     maybe_out_boxes = _box
                 else:
                     KORNIA_UNWRAP(maybe_out_boxes, Boxes).merge(_box, inplace=True)
@@ -132,10 +133,10 @@ class RandomMosaic(MixAugmentationBaseV2):
     @torch.no_grad()
     def _compose_images(self, input: Tensor, params: Dict[str, Tensor], flags: Dict[str, Any]) -> Tensor:
         out = []
-        for i in range(flags['mosaic_grid'][0]):
+        for i in range(flags["mosaic_grid"][0]):
             out_row = []
-            for j in range(flags['mosaic_grid'][1]):
-                img_idx = flags['mosaic_grid'][1] * i + j
+            for j in range(flags["mosaic_grid"][1]):
+                img_idx = flags["mosaic_grid"][1] * i + j
                 image = input[params["permutation"][:, img_idx]]
                 out_row.append(image)
             out.append(concatenate(out_row, -2))
@@ -155,17 +156,17 @@ class RandomMosaic(MixAugmentationBaseV2):
         flags = self.flags if flags is None else flags
         if flags["cropping_mode"] == "resample":  # uses bilinear interpolation to crop
             if not isinstance(transform, Tensor):
-                raise TypeError(f'Expected the transform to be a Tensor. Gotcha {type(transform)}')
+                raise TypeError(f"Expected the transform to be a Tensor. Gotcha {type(transform)}")
 
             # Fit the arg to F.pad
-            if flags['padding_mode'] == "constant":
+            if flags["padding_mode"] == "constant":
                 padding_mode = "zeros"
-            elif flags['padding_mode'] == "replicate":
+            elif flags["padding_mode"] == "replicate":
                 padding_mode = "border"
-            elif flags['padding_mode'] == "reflect":
+            elif flags["padding_mode"] == "reflect":
                 padding_mode = "reflection"
             else:
-                padding_mode = flags['padding_mode']
+                padding_mode = flags["padding_mode"]
 
             return crop_by_transform_mat(
                 input,

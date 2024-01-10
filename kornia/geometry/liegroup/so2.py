@@ -1,15 +1,19 @@
 # kornia.geometry.so2 module inspired by Sophus-sympy.
 # https://github.com/strasdat/Sophus/blob/master/sympy/sophus/so2.py
+from __future__ import annotations
+
 from typing import Optional, overload
 
-from kornia.core import Module, Parameter, Tensor, complex, rand, stack, tensor, zeros_like
+from kornia.core import Device, Dtype, Module, Parameter, Tensor, complex, rand, stack, tensor, zeros_like
+from kornia.core.check import KORNIA_CHECK, KORNIA_CHECK_IS_TENSOR
 from kornia.geometry.liegroup._utils import (
+    check_so2_matrix,
     check_so2_matrix_shape,
     check_so2_t_shape,
     check_so2_theta_shape,
     check_so2_z_shape,
 )
-from kornia.testing import KORNIA_CHECK, KORNIA_CHECK_IS_TENSOR
+from kornia.geometry.vector import Vector2
 
 
 class So2(Module):
@@ -53,18 +57,18 @@ class So2(Module):
     def __repr__(self) -> str:
         return f"{self.z}"
 
-    def __getitem__(self, idx: int) -> 'So2':
+    def __getitem__(self, idx: int | slice) -> So2:
         return So2(self._z[idx])
 
     @overload
-    def __mul__(self, right: 'So2') -> 'So2':
+    def __mul__(self, right: So2) -> So2:
         ...
 
     @overload
     def __mul__(self, right: Tensor) -> Tensor:
         ...
 
-    def __mul__(self, right):
+    def __mul__(self, right: So2 | Tensor) -> So2 | Tensor:
         """Performs a left-multiplication either rotation concatenation or point-transform.
 
         Args:
@@ -76,14 +80,19 @@ class So2(Module):
         z = self.z
         if isinstance(right, So2):
             return So2(z * right.z)
-        elif isinstance(right, Tensor):
+        elif isinstance(right, (Vector2, Tensor)):
             # TODO change to KORNIA_CHECK_SHAPE once there is multiple shape support
-            check_so2_t_shape(right)
-            x = right[..., 0]
-            y = right[..., 1]
+            if isinstance(right, Tensor):
+                check_so2_t_shape(right)
+            x = right.data[..., 0]
+            y = right.data[..., 1]
             real = z.real
             imag = z.imag
-            return stack((real * x - imag * y, imag * x + real * y), -1)
+            out = stack((real * x - imag * y, imag * x + real * y), -1)
+            if isinstance(right, Tensor):
+                return out
+            else:
+                return Vector2(out)
         else:
             raise TypeError(f"Not So2 or Tensor type. Got: {type(right)}")
 
@@ -93,7 +102,7 @@ class So2(Module):
         return self._z
 
     @staticmethod
-    def exp(theta: Tensor) -> 'So2':
+    def exp(theta: Tensor) -> So2:
         """Converts elements of lie algebra to elements of lie group.
 
         Args:
@@ -141,6 +150,23 @@ class So2(Module):
         row1 = stack((theta, z), -1)
         return stack((row0, row1), -1)
 
+    @staticmethod
+    def vee(omega: Tensor) -> Tensor:
+        """Converts elements from lie algebra to vector space. Returns vector of shape :math:`(B,)`.
+
+        Args:
+            omega: 2x2-matrix representing lie algebra.
+
+        Example:
+            >>> v = torch.ones(3)
+            >>> omega = So2.hat(v)
+            >>> So2.vee(omega)
+            tensor([1., 1., 1.])
+        """
+        # TODO change to KORNIA_CHECK_SHAPE once there is multiple shape support
+        check_so2_matrix_shape(omega)
+        return omega[..., 0, 1]
+
     def matrix(self) -> Tensor:
         """Convert the complex number to a rotation matrix of shape :math:`(B, 2, 2)`.
 
@@ -156,7 +182,7 @@ class So2(Module):
         return stack((row0, row1), -2)
 
     @classmethod
-    def from_matrix(cls, matrix: Tensor) -> 'So2':
+    def from_matrix(cls, matrix: Tensor) -> So2:
         """Create So2 from a rotation matrix.
 
         Args:
@@ -171,11 +197,14 @@ class So2(Module):
         """
         # TODO change to KORNIA_CHECK_SHAPE once there is multiple shape support
         check_so2_matrix_shape(matrix)
+        check_so2_matrix(matrix)
         z = complex(matrix[..., 0, 0], matrix[..., 1, 0])
         return cls(z)
 
     @classmethod
-    def identity(cls, batch_size: Optional[int] = None, device=None, dtype=None) -> 'So2':
+    def identity(
+        cls, batch_size: Optional[int] = None, device: Optional[Device] = None, dtype: Optional[Dtype] = None
+    ) -> So2:
         """Create a So2 group representing an identity rotation.
 
         Args:
@@ -195,7 +224,7 @@ class So2(Module):
             imag_data = imag_data.repeat(batch_size)
         return cls(complex(real_data, imag_data))
 
-    def inverse(self) -> 'So2':
+    def inverse(self) -> So2:
         """Returns the inverse transformation.
 
         Example:
@@ -207,7 +236,9 @@ class So2(Module):
         return So2(1 / self.z)
 
     @classmethod
-    def random(cls, batch_size: Optional[int] = None, device=None, dtype=None) -> 'So2':
+    def random(
+        cls, batch_size: Optional[int] = None, device: Optional[Device] = None, dtype: Optional[Dtype] = None
+    ) -> So2:
         """Create a So2 group representing a random rotation.
 
         Args:
@@ -225,3 +256,15 @@ class So2(Module):
             real_data = rand((), device=device, dtype=dtype)
             imag_data = rand((), device=device, dtype=dtype)
         return cls(complex(real_data, imag_data))
+
+    def adjoint(self) -> Tensor:
+        """Returns the adjoint matrix of shape :math:`(B, 2, 2)`.
+
+        Example:
+            >>> s = So2.identity()
+            >>> s.adjoint()
+            tensor([[1., -0.],
+                    [0., 1.]], grad_fn=<StackBackward0>)
+        """
+        batch_size = len(self.z) if len(self.z.shape) > 0 else None
+        return self.identity(batch_size, self.z.device, self.z.real.dtype).matrix()

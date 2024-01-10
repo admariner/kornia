@@ -15,6 +15,7 @@ class TestTFeat:
         out = tfeat(inp)
         assert out.shape == (1, 128)
 
+    @pytest.mark.slow
     def test_pretrained(self, device):
         inp = torch.ones(1, 1, 32, 32, device=device)
         tfeat = TFeat(True).to(device)
@@ -35,7 +36,8 @@ class TestTFeat:
         tfeat = TFeat().to(patches.device, patches.dtype)
         assert gradcheck(tfeat, (patches,), eps=1e-2, atol=1e-2, raise_exception=True, fast_mode=True)
 
-    @pytest.mark.jit
+    @pytest.mark.slow
+    @pytest.mark.jit()
     def test_jit(self, device, dtype):
         B, C, H, W = 2, 1, 32, 32
         patches = torch.ones(B, C, H, W, device=device, dtype=dtype)

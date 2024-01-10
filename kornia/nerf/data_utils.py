@@ -8,7 +8,7 @@ from kornia.core import Device, Tensor, stack
 from kornia.geometry.camera import PinholeCamera
 from kornia.io import ImageLoadType, load_image
 from kornia.nerf.core import Images, ImageTensors
-from kornia.nerf.rays import RandomRaySampler, RaySampler, UniformRaySampler
+from kornia.nerf.samplers import RandomRaySampler, RaySampler, UniformRaySampler
 
 RayGroup = Tuple[Tensor, Tensor, Optional[Tensor]]
 
@@ -21,7 +21,7 @@ def _is_list_of_tensors(lst: Sequence[object]) -> TypeGuard[List[Tensor]]:
     return isinstance(lst, list) and all(isinstance(x, Tensor) for x in lst)
 
 
-class RayDataset(Dataset):
+class RayDataset(Dataset[RayGroup]):
     r"""Class to represent a dataset of rays.
 
     Args:
@@ -71,7 +71,7 @@ class RayDataset(Dataset):
         elif _is_list_of_tensors(imgs):
             images = imgs  # Take images provided on input
         else:
-            raise TypeError(f'Expected a list of image tensors or image paths. Gotcha {type(imgs)}.')
+            raise TypeError(f"Expected a list of image tensors or image paths. Gotcha {type(imgs)}.")
 
         self._check_dimensions(images)
 
@@ -98,20 +98,20 @@ class RayDataset(Dataset):
 
     def _check_image_type_consistency(self, imgs: Images) -> None:
         if not all(isinstance(img, str) for img in imgs) and not all(isinstance(img, Tensor) for img in imgs):
-            raise ValueError('The list of input images can only be all paths or tensors')
+            raise ValueError("The list of input images can only be all paths or tensors")
 
     def _check_dimensions(self, imgs: ImageTensors) -> None:
         if len(imgs) != self._cameras.batch_size:
             raise ValueError(
-                f'Number of images {len(imgs)} does not match number of cameras {self._cameras.batch_size}'
+                f"Number of images {len(imgs)} does not match number of cameras {self._cameras.batch_size}"
             )
         if not all(img.shape[0] == 3 for img in imgs):
-            raise ValueError('Not all input images have 3 channels')
+            raise ValueError("Not all input images have 3 channels")
         for i, (img, height, width) in enumerate(zip(imgs, self._cameras.height, self._cameras.width)):
             if img.shape[1:] != (height, width):
                 raise ValueError(
-                    f'Image index {i} dimensions {(img.shape[1], img.shape[2])} are inconsistent with equivalent '
-                    f'camera dimensions {(height.item(), width.item())}'
+                    f"Image index {i} dimensions {(img.shape[1], img.shape[2])} are inconsistent with equivalent "
+                    f"camera dimensions {(height.item(), width.item())}"
                 )
 
     @staticmethod
@@ -121,8 +121,10 @@ class RayDataset(Dataset):
             imgs.append(load_image(img_path, ImageLoadType.UNCHANGED))
         return imgs
 
-    def __len__(self):
-        return len(self._ray_sampler)
+    def __len__(self) -> int:
+        if isinstance(self._ray_sampler, RaySampler):
+            return len(self._ray_sampler)
+        return 0
 
     def __getitem__(self, idxs: Union[int, List[int]]) -> RayGroup:
         r"""Gets a dataset item.
@@ -135,7 +137,7 @@ class RayDataset(Dataset):
             coordinates: RayGroup
         """
         if not isinstance(self._ray_sampler, RaySampler):
-            raise TypeError('Ray sampler is not initiate yet, please run self.init_ray_dataset() before use it.')
+            raise TypeError("Ray sampler is not initiate yet, please run self.init_ray_dataset() before use it.")
 
         origins = self._ray_sampler.origins[idxs]
         directions = self._ray_sampler.directions[idxs]
@@ -151,7 +153,7 @@ class RayDataset(Dataset):
         return origins, directions, rgbs
 
 
-def instantiate_ray_dataloader(dataset: RayDataset, batch_size: int = 1, shuffle: bool = True) -> DataLoader:
+def instantiate_ray_dataloader(dataset: RayDataset, batch_size: int = 1, shuffle: bool = True) -> DataLoader[RayGroup]:
     r"""Initializes a dataloader to manage a ray dataset.
 
     Args:

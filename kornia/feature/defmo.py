@@ -1,7 +1,7 @@
 from typing import Callable, Dict, List, Optional, Type
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 from kornia.core import Module, Tensor, concatenate, stack
 from kornia.utils.helpers import map_location_to_cpu
@@ -117,8 +117,7 @@ class ResNet(Module):
             replace_stride_with_dilation = [False, False, False]
         if len(replace_stride_with_dilation) != 3:
             raise ValueError(
-                "replace_stride_with_dilation should be None "
-                "or a 3-element tuple, got {}".format(replace_stride_with_dilation)
+                f"replace_stride_with_dilation should be None or a 3-element tuple, got {replace_stride_with_dilation}"
             )
         self.groups = groups
         self.base_width = width_per_group
@@ -135,7 +134,7 @@ class ResNet(Module):
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
             elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
@@ -206,7 +205,7 @@ class ResNet(Module):
 
 
 class EncoderDeFMO(Module):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         model = ResNet(Bottleneck, [3, 4, 6, 3])  # ResNet50
         modelc1 = nn.Sequential(*list(model.children())[:3])
@@ -219,7 +218,7 @@ class EncoderDeFMO(Module):
 
 
 class RenderingDeFMO(Module):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.tsr_steps: int = 24
         model = nn.Sequential(
@@ -246,9 +245,7 @@ class RenderingDeFMO(Module):
         renders = []
         for ki in range(times.shape[1]):
             t_tensor = (
-                # TODO: replace by after deprecate pytorch 1.6
-                # times[list(range(times.shape[0])), ki]
-                times[[x for x in range(times.shape[0])], ki]  # skipcq: PYL-R1721
+                times[list(range(times.shape[0])), ki]
                 .unsqueeze(-1)
                 .unsqueeze(-1)
                 .unsqueeze(-1)
@@ -291,11 +288,11 @@ class DeFMO(Module):
         # use torch.hub to load pretrained model
         if pretrained:
             pretrained_dict = torch.hub.load_state_dict_from_url(
-                urls['defmo_encoder'], map_location=map_location_to_cpu
+                urls["defmo_encoder"], map_location=map_location_to_cpu
             )
             self.encoder.load_state_dict(pretrained_dict, strict=True)
             pretrained_dict_ren = torch.hub.load_state_dict_from_url(
-                urls['defmo_rendering'], map_location=map_location_to_cpu
+                urls["defmo_rendering"], map_location=map_location_to_cpu
             )
             self.rendering.load_state_dict(pretrained_dict_ren, strict=True)
         self.eval()

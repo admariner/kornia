@@ -1,13 +1,14 @@
 # based on: https://github.com/ShiqiYu/libfacedetection.train/blob/74f3aa77c63234dd954d21286e9a60703b8d0868/tasks/task1/yufacedetectnet.py  # noqa
 import math
 from enum import Enum
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
 
 from kornia.geometry.bbox import nms as nms_kornia
+from kornia.utils.helpers import map_location_to_cpu
 
 __all__ = ["FaceDetector", "FaceDetectorResult", "FaceKeypoint"]
 
@@ -20,6 +21,7 @@ class FaceKeypoint(Enum):
 
     The left/right convention is based on the screen viewer.
     """
+
     EYE_LEFT = 0
     EYE_RIGHT = 1
     NOSE = 2
@@ -153,24 +155,24 @@ class FaceDetector(nn.Module):
         self.nms_threshold = nms_threshold
         self.keep_top_k = keep_top_k
         self.config = {
-            'name': 'YuFaceDetectNet',
-            'min_sizes': [[10, 16, 24], [32, 48], [64, 96], [128, 192, 256]],
-            'steps': [8, 16, 32, 64],
-            'variance': [0.1, 0.2],
-            'clip': False,
+            "name": "YuFaceDetectNet",
+            "min_sizes": [[10, 16, 24], [32, 48], [64, 96], [128, 192, 256]],
+            "steps": [8, 16, 32, 64],
+            "variance": [0.1, 0.2],
+            "clip": False,
         }
-        self.min_sizes: List[List[int]] = [[10, 16, 24], [32, 48], [64, 96], [128, 192, 256]]
-        self.steps: List[int] = [8, 16, 32, 64]
-        self.variance: List[float] = [0.1, 0.2]
-        self.clip: bool = False
-        self.model = YuFaceDetectNet('test', pretrained=True)
-        self.nms: Callable = nms_kornia
+        self.min_sizes = [[10, 16, 24], [32, 48], [64, 96], [128, 192, 256]]
+        self.steps = [8, 16, 32, 64]
+        self.variance = [0.1, 0.2]
+        self.clip = False
+        self.model = YuFaceDetectNet("test", pretrained=True)
+        self.nms = nms_kornia
 
     def preprocess(self, image: torch.Tensor) -> torch.Tensor:
         return image
 
     def postprocess(self, data: Dict[str, torch.Tensor], height: int, width: int) -> List[torch.Tensor]:
-        loc, conf, iou = data['loc'], data['conf'], data['iou']
+        loc, conf, iou = data["loc"], data["conf"], data["iou"]
 
         scale = torch.tensor(
             [width, height, width, height, width, height, width, height, width, height, width, height, width, height],
@@ -227,7 +229,7 @@ class FaceDetector(nn.Module):
 
 
 class ConvDPUnit(nn.Sequential):
-    def __init__(self, in_channels, out_channels, withBNRelu=True):
+    def __init__(self, in_channels: int, out_channels: int, withBNRelu: bool = True) -> None:
         super().__init__()
         self.add_module("conv1", nn.Conv2d(in_channels, out_channels, 1, 1, 0, bias=True, groups=1))
         self.add_module("conv2", nn.Conv2d(out_channels, out_channels, 3, 1, 1, bias=True, groups=out_channels))
@@ -253,7 +255,7 @@ class Conv4layerBlock(nn.Sequential):
 
 
 class YuFaceDetectNet(nn.Module):
-    def __init__(self, phase, pretrained: bool):
+    def __init__(self, phase: str, pretrained: bool) -> None:
         super().__init__()
         self.phase = phase
         self.num_classes = 2
@@ -273,7 +275,7 @@ class YuFaceDetectNet(nn.Module):
             Conv4layerBlock(64, 3 * (14 + 2 + 1), False),
         )
 
-        if self.phase == 'train':
+        if self.phase == "train":
             for m in self.modules():
                 if isinstance(m, nn.Conv2d):
                     if m.bias is not None:
@@ -287,8 +289,7 @@ class YuFaceDetectNet(nn.Module):
 
         # use torch.hub to load pretrained model
         if pretrained:
-            storage_fcn: Callable = lambda storage, loc: storage
-            pretrained_dict = torch.hub.load_state_dict_from_url(url, map_location=storage_fcn)
+            pretrained_dict = torch.hub.load_state_dict_from_url(url, map_location=map_location_to_cpu)
             self.load_state_dict(pretrained_dict, strict=True)
         self.eval()
 
@@ -374,7 +375,7 @@ class _PriorBox:
         self.clip = clip
         self.image_size = image_size
 
-        self.device: torch.device = torch.device('cpu')
+        self.device: torch.device = torch.device("cpu")
         self.dtype: torch.dtype = torch.float32
 
         for i in range(4):
@@ -389,7 +390,7 @@ class _PriorBox:
 
         self.feature_maps = [self.feature_map_3th, self.feature_map_4th, self.feature_map_5th, self.feature_map_6th]
 
-    def to(self, device: torch.device, dtype: torch.dtype) -> '_PriorBox':
+    def to(self, device: torch.device, dtype: torch.dtype) -> "_PriorBox":
         self.device = device
         self.dtype = dtype
         return self

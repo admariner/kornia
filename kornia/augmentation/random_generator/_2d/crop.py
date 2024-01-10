@@ -9,6 +9,8 @@ from kornia.core import Device, Tensor, tensor, where, zeros
 from kornia.geometry.bbox import bbox_generator
 from kornia.utils.helpers import _extract_device_dtype
 
+__all__ = ["CropGenerator", "ResizedCropGenerator", "center_crop_generator"]
+
 
 class CropGenerator(RandomGeneratorBase):
     r"""Get parameters for ```crop``` transformation for crop transform.
@@ -43,15 +45,16 @@ class CropGenerator(RandomGeneratorBase):
     def make_samplers(self, device: torch.device, dtype: torch.dtype) -> None:
         self.rand_sampler = Uniform(tensor(0.0, device=device, dtype=dtype), tensor(1.0, device=device, dtype=dtype))
 
-    def forward(self, batch_shape: torch.Size, same_on_batch: bool = False) -> Dict[str, Tensor]:
+    def forward(self, batch_shape: Tuple[int, ...], same_on_batch: bool = False) -> Dict[str, Tensor]:
         batch_size = batch_shape[0]
         _common_param_check(batch_size, same_on_batch)
         _device, _dtype = _extract_device_dtype([self.size if isinstance(self.size, Tensor) else None])
 
         if batch_size == 0:
-            return dict(
-                src=zeros([0, 4, 2], device=_device, dtype=_dtype), dst=zeros([0, 4, 2], device=_device, dtype=_dtype)
-            )
+            return {
+                "src": zeros([0, 4, 2], device=_device, dtype=_dtype),
+                "dst": zeros([0, 4, 2], device=_device, dtype=_dtype),
+            }
 
         input_size = (batch_shape[-2], batch_shape[-1])
         if not isinstance(self.size, Tensor):
@@ -125,7 +128,7 @@ class CropGenerator(RandomGeneratorBase):
 
         _input_size = tensor(input_size, device=_device, dtype=torch.long).expand(batch_size, -1)
 
-        return dict(src=crop_src, dst=crop_dst, input_size=_input_size, output_size=_output_size)
+        return {"src": crop_src, "dst": crop_dst, "input_size": _input_size, "output_size": _output_size}
 
 
 class ResizedCropGenerator(CropGenerator):
@@ -194,17 +197,17 @@ class ResizedCropGenerator(CropGenerator):
         self.rand_sampler = Uniform(tensor(0.0, device=device, dtype=dtype), tensor(1.0, device=device, dtype=dtype))
         self.log_ratio_sampler = Uniform(torch.log(ratio[0]), torch.log(ratio[1]), validate_args=False)
 
-    def forward(self, batch_shape: torch.Size, same_on_batch: bool = False) -> Dict[str, Tensor]:
+    def forward(self, batch_shape: Tuple[int, ...], same_on_batch: bool = False) -> Dict[str, Tensor]:
         batch_size = batch_shape[0]
         size = (batch_shape[-2], batch_shape[-1])
         _device, _dtype = _extract_device_dtype([self.scale, self.ratio])
 
         if batch_size == 0:
-            return dict(
-                src=zeros([0, 4, 2], device=_device, dtype=_dtype),
-                dst=zeros([0, 4, 2], device=_device, dtype=_dtype),
-                size=zeros([0, 2], device=_device, dtype=_dtype),
-            )
+            return {
+                "src": zeros([0, 4, 2], device=_device, dtype=_dtype),
+                "dst": zeros([0, 4, 2], device=_device, dtype=_dtype),
+                "size": zeros([0, 2], device=_device, dtype=_dtype),
+            }
 
         rand = _adapted_rsampling((batch_size, 10), self.rand_sampler, same_on_batch).to(device=_device, dtype=_dtype)
         area = (rand * (self.scale[1] - self.scale[0]) + self.scale[0]) * size[0] * size[1]
@@ -249,7 +252,7 @@ class ResizedCropGenerator(CropGenerator):
 
 
 def center_crop_generator(
-    batch_size: int, height: int, width: int, size: Tuple[int, int], device: Device = torch.device('cpu')
+    batch_size: int, height: int, width: int, size: Tuple[int, int], device: Device = torch.device("cpu")
 ) -> Dict[str, Tensor]:
     r"""Get parameters for ```center_crop``` transformation for center crop transform.
 
@@ -271,7 +274,7 @@ def center_crop_generator(
     _common_param_check(batch_size)
     if not isinstance(size, (tuple, list)) and len(size) == 2:
         raise ValueError(f"Input size must be a tuple/list of length 2. Got {size}")
-    if not (type(height) is int and height > 0 and type(width) is int and width > 0):
+    if not (isinstance(height, int) and height > 0 and isinstance(width, int) and width > 0):
         raise AssertionError(f"'height' and 'width' must be integers. Got {height}, {width}.")
     if not (height >= size[0] and width >= size[1]):
         raise AssertionError(f"Crop size must be smaller than input size. Got ({height}, {width}) and {size}.")
@@ -307,4 +310,4 @@ def center_crop_generator(
     _input_size = tensor((height, width), device=device, dtype=torch.long).expand(batch_size, -1)
     _output_size = tensor(size, device=device, dtype=torch.long).expand(batch_size, -1)
 
-    return dict(src=points_src, dst=points_dst, input_size=_input_size, output_size=_output_size)
+    return {"src": points_src, "dst": points_dst, "input_size": _input_size, "output_size": _output_size}

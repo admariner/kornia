@@ -1,12 +1,14 @@
+from __future__ import annotations
+
 from typing import Callable
 
 import torch
-import torch.nn as nn
+from torch import nn
 
-from kornia.core import Tensor, as_tensor, stack, tensor, where, zeros_like
+from kornia.core import Module, Tensor, as_tensor, stack, tensor, where, zeros_like
 
 
-class _HausdorffERLossBase(torch.jit.ScriptModule):
+class _HausdorffERLossBase(Module):
     """Base class for binary Hausdorff loss based on morphological erosion.
 
     This is an Hausdorff Distance (HD) Loss that based on morphological erosion,which provided
@@ -25,10 +27,10 @@ class _HausdorffERLossBase(torch.jit.ScriptModule):
         Estimated Hausdorff Loss.
     """
 
-    conv: Callable
-    max_pool: Callable
+    conv: Callable[..., Tensor]
+    max_pool: Callable[..., Tensor]
 
-    def __init__(self, alpha: float = 2.0, k: int = 10, reduction: str = 'mean') -> None:
+    def __init__(self, alpha: float = 2.0, k: int = 10, reduction: str = "mean") -> None:
         super().__init__()
         self.alpha = alpha
         self.k = k
@@ -47,8 +49,7 @@ class _HausdorffERLossBase(torch.jit.ScriptModule):
         mask = torch.ones_like(bound, device=pred.device, dtype=torch.bool)
 
         # Same padding, assuming kernel is odd and square (cube) shaped.
-        # NOTE: int() has to be added for enabling JIT.
-        padding = int((kernel.size(-1) - 1) // 2)
+        padding = (kernel.size(-1) - 1) // 2
         for k in range(self.k):
             # compute convolution with kernel
             dilation = self.conv(bound, weight=kernel, padding=padding, groups=1)
@@ -75,8 +76,7 @@ class _HausdorffERLossBase(torch.jit.ScriptModule):
 
         return eroded
 
-    # NOTE: we add type ignore because the forward pass does not work well with subclassing
-    def forward(self, pred: Tensor, target: Tensor) -> Tensor:  # type: ignore[override]
+    def forward(self, pred: Tensor, target: Tensor) -> Tensor:
         """Compute Hausdorff loss.
 
         Args:
@@ -110,11 +110,11 @@ class _HausdorffERLossBase(torch.jit.ScriptModule):
             ]
         )
 
-        if self.reduction == 'mean':
+        if self.reduction == "mean":
             out = out.mean()
-        elif self.reduction == 'sum':
+        elif self.reduction == "sum":
             out = out.sum()
-        elif self.reduction == 'none':
+        elif self.reduction == "none":
             pass
         else:
             raise NotImplementedError(f"reduction `{self.reduction}` has not been implemented yet.")
@@ -167,8 +167,7 @@ class HausdorffERLoss(_HausdorffERLossBase):
         kernel = cross * 0.2
         return kernel[None]
 
-    # NOTE: we add type ignore because the forward pass does not work well with subclassing
-    def forward(self, pred: Tensor, target: Tensor) -> Tensor:  # type: ignore[override]
+    def forward(self, pred: Tensor, target: Tensor) -> Tensor:
         """Compute Hausdorff loss.
 
         Args:
@@ -184,7 +183,7 @@ class HausdorffERLoss(_HausdorffERLossBase):
 
         if not (target.max() < pred.size(1) and target.min() >= 0 and target.dtype == torch.long):
             raise ValueError(
-                f"Expect long type target value in range (0, {pred.size(1)})." f"({target.min()}, {target.max()})"
+                f"Expect long type target value in range (0, {pred.size(1)}). ({target.min()}, {target.max()})"
             )
         return super().forward(pred, target)
 
@@ -238,8 +237,7 @@ class HausdorffERLoss3D(_HausdorffERLossBase):
         kernel = stack([bound, cross, bound], 1) * (1 / 7)
         return kernel[None]
 
-    # NOTE: we add type ignore because the forward pass does not work well with subclassing
-    def forward(self, pred: Tensor, target: Tensor) -> Tensor:  # type: ignore[override]
+    def forward(self, pred: Tensor, target: Tensor) -> Tensor:
         """Compute 3D Hausdorff loss.
 
         Args:
